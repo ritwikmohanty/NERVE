@@ -1,0 +1,2 @@
+# This directory holds generated PDFs (dispute reports, scheme applications, etc.)
+# Actual PDF files are gitignored.

@@ -1,0 +1,33 @@
+{
+  "description": "Labour Rights & Grievance Filing Reference",
+  "labour_codes_2025": {
+    "minimum_wage": "As per state notification — currently ₹520-780/day for construction in Maharashtra",
+    "working_hours": "8 hours/day, 48 hours/week max",
+    "overtime": "Double the normal rate",
+    "weekly_off": "Mandatory 1 day per week",
+    "safety": "Employer must provide PPE, first aid, drinking water"
+  },
+  "grievance_channels": [
+    {
+      "name": "PG Portal (CPGRAMS)",
+      "url": "pgportal.gov.in",
+      "description": "Central grievance portal for all government departments"
+    },
+    {
+      "name": "Labour Commissioner",
+      "description": "State Labour Commissioner office — file complaint with evidence"
+    },
+    {
+      "name": "RTI (Right to Information)",
+      "url": "rtionline.gov.in",
+      "description": "File RTI to check fund disbursement, scheme status"
+    },
+    {
+      "name": "National Human Rights Commission",
+      "url": "nhrc.nic.in",
+      "description": "For serious violations — bonded labour, trafficking"
+    }
+  ],
+  "collective_threshold": 10,
+  "collective_description": "If 10+ similar reports in same pin code → auto-file collective grievance"
+}

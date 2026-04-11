@@ -1,0 +1,41 @@
+{
+  "description": "Worker Welfare Schemes — Ayushman, BOCW, PMAY, e-Shram, State Labour",
+  "schemes": [
+    {
+      "name": "Ayushman Bharat (PMJAY)",
+      "eligibility": "BPL families, e-Shram card holders",
+      "benefit": "₹5 lakh health cover per year per family",
+      "apply": "Visit ayushmanbharat.gov.in or nearest CSC"
+    },
+    {
+      "name": "e-Shram Card",
+      "eligibility": "Unorganised workers aged 16-59, income < ₹2L/year",
+      "benefit": "₹2L accidental insurance, scheme access",
+      "apply": "eshram.gov.in or call 14434"
+    },
+    {
+      "name": "BOCW (Building & Other Construction Workers)",
+      "eligibility": "Construction workers with 90+ days work",
+      "benefit": "Pension, housing, medical, education for children",
+      "apply": "State Labour Welfare Board"
+    },
+    {
+      "name": "PMAY (Pradhan Mantri Awas Yojana)",
+      "eligibility": "EWS/LIG families, no pucca house",
+      "benefit": "₹2.67L subsidy for housing",
+      "apply": "pmay.gov.in or local ULB"
+    },
+    {
+      "name": "PM-SYM (Shram Yogi Maandhan)",
+      "eligibility": "Unorganised workers 18-40 years, income < ₹15K/month",
+      "benefit": "₹3000/month pension after 60",
+      "apply": "maandhan.in or nearest CSC"
+    },
+    {
+      "name": "PMSBY (Pradhan Mantri Suraksha Bima Yojana)",
+      "eligibility": "Age 18-70, bank account",
+      "benefit": "₹2L accidental death/disability cover at ₹20/year",
+      "apply": "Through any bank"
+    }
+  ]
+}

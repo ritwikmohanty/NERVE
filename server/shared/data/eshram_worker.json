@@ -1,0 +1,28 @@
+{
+  "description": "e-Shram Unorganised Workers Registration Portal",
+  "eligibility": {
+    "age": "16-59 years",
+    "sector": "Unorganised sector worker",
+    "income": "Below ₹2 lakh per annum",
+    "requirement": "Aadhaar linked to mobile number"
+  },
+  "registration_flow": [
+    "Visit eshram.gov.in or call 14434",
+    "Enter Aadhaar number",
+    "OTP verification on linked mobile",
+    "Fill basic details (name, DOB, occupation, bank)",
+    "Upload photo",
+    "Get e-Shram card (UAN number)"
+  ],
+  "benefits": [
+    "Accidental Insurance: ₹2 lakh (death), ₹1 lakh (partial disability)",
+    "Access to PMJJBY, PMSBY, APY",
+    "Ration card linkage",
+    "State-specific welfare schemes"
+  ],
+  "occupation_categories": [
+    "Construction Worker", "Street Vendor", "Domestic Worker",
+    "Agriculture Worker", "Gig Worker", "Transport Worker",
+    "Textile Worker", "Auto/Taxi Driver", "Home-based Worker"
+  ]
+}
