@@ -131,7 +131,7 @@ function StrategyCard({ strategy }: {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <div className="border-2 border-black bg-[#CEEBFC] p-3 shadow-[2px_2px_0_0_#000]">
+        <div className="border-2 border-black bg-secondary p-3 shadow-[2px_2px_0_0_#000]">
           <p className="text-[9px] font-black uppercase text-black mb-1">Primary Channel</p>
           <p className="text-xs font-black flex items-center gap-1.5 uppercase">
             <Send className="size-3" />
@@ -198,7 +198,7 @@ function ContentTabs({ touches }: { touches: TouchContent[] }) {
         <TabsContent key={t.touchNumber} value={String(t.touchNumber)} className="mt-3">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Chip bg="bg-[#CEEBFC]">{t.channel.replace(/_/g, " ")}</Chip>
+              <Chip bg="bg-secondary">{t.channel.replace(/_/g, " ")}</Chip>
               {t.subject && (
                 <span className="text-[10px] font-bold text-black truncate flex-1">
                   Re: {t.subject}
@@ -261,8 +261,8 @@ function ResponseCard({
   reasoning: string;
 }) {
   const sentimentBg: Record<string, string> = {
-    positive: "bg-[#599D77] text-white",
-    negative: "bg-[#EA435F] text-white",
+    positive: "bg-black text-white",
+    negative: "bg-primary text-white",
     neutral: "bg-secondary text-black",
   };
 
@@ -431,7 +431,7 @@ export default function RightPanel({ sseEvents, detail }: Props) {
           icon={<TrendingUp className="size-4" />}
           title="Strategy"
           description="Agent 5 — Channel & tone decisions"
-          accent="bg-[#CEEBFC]"
+          accent="bg-secondary"
         >
           {parsed.strategy ? (
             <StrategyCard strategy={parsed.strategy} />
@@ -469,7 +469,7 @@ export default function RightPanel({ sseEvents, detail }: Props) {
             icon={<Brain className="size-4" />}
             title="Response Analysis"
             description="Agent 9 — Sentiment classification"
-            accent="bg-[#599D77] text-white"
+            accent="bg-black text-white"
           >
             <ResponseCard {...parsed.response} />
           </PanelSection>

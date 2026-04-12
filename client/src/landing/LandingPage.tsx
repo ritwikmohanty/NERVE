@@ -192,7 +192,7 @@ function HeroVisual() {
       />
       
       {/* Floating Status Badge */}
-      <motion.div
+      {/* <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: 0.8, ease: "easeOut" }}
@@ -205,10 +205,10 @@ function HeroVisual() {
            <div className="font-heading text-[0.85rem] font-bold text-[#1A1A18] leading-tight">Neural Sync</div>
            <div className="font-mono text-[0.65rem] text-[#3E9B63] uppercase">Active</div>
         </div>
-      </motion.div>
+      </motion.div> */}
 
        {/* Floating Performance Badge */}
-       <motion.div
+       {/* <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: 1, ease: "easeOut" }}
@@ -216,7 +216,7 @@ function HeroVisual() {
       >
         <div className="font-sans text-[0.7rem] text-[#6B6B62]">Response Rate</div>
         <div className="font-heading text-[1.4rem] font-black text-[#1A5C35] leading-none">+34%</div>
-      </motion.div>
+      </motion.div> */}
     </div>
   );
 }

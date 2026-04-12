@@ -26,11 +26,12 @@ import {
   Brain,
 } from "lucide-react";
 
-const STATUS_BADGE: Record<string, { color: string; label: string }> = {
-  pipeline_running: { color: "emerald", label: "Running" },
-  pipeline_complete: { color: "emerald", label: "Complete" },
-  enriched: { color: "cyan", label: "Enriched" },
-  error: { color: "red", label: "Error" },
+// Unified status labels — "Running" everywhere is consistent
+const STATUS_BADGE: Record<string, { bg: string; label: string }> = {
+  pipeline_running: { bg: "bg-secondary text-black", label: "Running" },
+  pipeline_complete: { bg: "bg-black text-white", label: "Complete" },
+  enriched: { bg: "bg-muted text-black", label: "Enriched" },
+  error: { bg: "bg-primary text-white", label: "Error" },
 };
 
 export default function DashboardPage() {
@@ -86,14 +87,14 @@ export default function DashboardPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-1.5 text-xs"
+                className="gap-1.5 text-xs border-2 border-black shadow-[2px_2px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold"
                 onClick={fetchAll}
               >
                 <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
               <Link to="/dashboard/new">
-                <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary-hover text-white border-2 border-black shadow-[2px_2px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all font-bold">
+                <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary text-white border-2 border-black shadow-[2px_2px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all font-bold uppercase">
                   <Plus className="size-3.5" /> Launch Pipeline
                 </Button>
               </Link>
@@ -101,14 +102,14 @@ export default function DashboardPage() {
           </div>
         </FadeIn>
 
-        {/* Stats Grid */}
+        {/* Stats Grid — 4 clean cards using only the 4-color palette */}
         <FadeIn delay={0.1}>
           <div className="grid grid-cols-5 gap-4">
             {/* Total Leads */}
-            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-md transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
+            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-none transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-md bg-secondary border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                  <div className="size-10 rounded-none bg-secondary border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
                     <Activity className="size-4 text-black" />
                   </div>
                   <TrendingUp className="size-4 text-black" />
@@ -120,11 +121,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Running */}
-            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-md transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
+            {/* Running — unified label "Running" (was "Active") */}
+            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-none transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-md bg-[#CEEBFC] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                  <div className="size-10 rounded-none bg-secondary border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
                     <Brain className="size-4 text-black" />
                   </div>
                   {running > 0 && <StatusDot status="running" />}
@@ -132,15 +133,16 @@ export default function DashboardPage() {
                 <p className="text-3xl font-black tracking-tight mt-1">
                   <AnimatedCounter value={running} />
                 </p>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-1">Active</p>
+                {/* Renamed from "Active" → "Running" to match badge labels */}
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-1">Running</p>
               </CardContent>
             </Card>
 
             {/* Completed */}
-            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-md transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
+            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-none transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-md bg-[#599D77] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                  <div className="size-10 rounded-none bg-black border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
                     <CheckCircle2 className="size-4 text-white" />
                   </div>
                   <Zap className="size-4 text-black" />
@@ -153,10 +155,10 @@ export default function DashboardPage() {
             </Card>
 
             {/* Errors */}
-            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-md transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
+            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-none transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-md bg-[#EA435F] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                  <div className="size-10 rounded-none bg-primary border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
                     <AlertTriangle className="size-4 text-white" />
                   </div>
                 </div>
@@ -167,11 +169,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* SSE Streams */}
-            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-md transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
+            {/* Live Streams */}
+            <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-none transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="size-10 rounded-md bg-[#FFDA5C] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                  <div className="size-10 rounded-none bg-secondary border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
                     <Server className="size-4 text-black" />
                   </div>
                 </div>
@@ -186,12 +188,12 @@ export default function DashboardPage() {
 
         {/* Agent Pipeline Mini Visual */}
         <FadeIn delay={0.15}>
-          <Card className="border-2 border-black bg-secondary shadow-[4px_4px_0_0_#000] overflow-hidden rounded-md">
+          <Card className="border-2 border-black bg-secondary shadow-[4px_4px_0_0_#000] overflow-hidden rounded-none">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="size-5 text-black" />
-                <span className="text-base font-bold text-black uppercase tracking-wide">Agent Pipeline Architecture</span>
-                <Badge variant="outline" className="border-2 border-black bg-white shadow-[2px_2px_0_0_#000] ml-2 text-xs font-bold text-black">
+                <span className="text-base font-black text-black uppercase tracking-wide">Agent Pipeline Architecture</span>
+                <Badge variant="outline" className="border-2 border-black bg-white shadow-[2px_2px_0_0_#000] ml-2 text-xs font-bold text-black rounded-none">
                   10-agent DAG
                 </Badge>
               </div>
@@ -199,9 +201,9 @@ export default function DashboardPage() {
                 {[
                   { n: 1, name: "Ingestion", icon: "📥", c: "bg-white" },
                   { n: 2, name: "Signal Scout", icon: "🔍", c: "bg-white" },
-                  { n: "3+4", name: "Score + Persona", icon: "⚡", parallel: true, c: "bg-[#CEEBFC]" },
+                  { n: "3+4", name: "Score + Persona", icon: "⚡", parallel: true, c: "bg-primary text-white" },
                   { n: 5, name: "Strategy", icon: "🎯", c: "bg-white" },
-                  { n: "6+7", name: "Content + Explain", icon: "✍️", parallel: true, c: "bg-[#CEEBFC]" },
+                  { n: "6+7", name: "Content + Explain", icon: "✍️", parallel: true, c: "bg-primary text-white" },
                   { n: 8, name: "Delivery", icon: "📤", c: "bg-white" },
                   { n: 9, name: "Monitor", icon: "👁️", c: "bg-white" },
                   { n: 10, name: "Learning", icon: "🧠", c: "bg-white" },
@@ -211,12 +213,12 @@ export default function DashboardPage() {
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.2 + i * 0.08 }}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md border-2 border-black shadow-[2px_2px_0_0_#000] transition-transform hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] ${agent.c}`}
+                      className={`flex items-center gap-3 px-3 py-2 border-2 border-black shadow-[2px_2px_0_0_#000] transition-transform hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] ${agent.c}`}
                     >
                       <span className="text-lg">{agent.icon}</span>
                       <div>
-                        <p className="text-[10px] font-black uppercase text-black">#{agent.n}</p>
-                        <p className="text-xs font-bold uppercase whitespace-nowrap text-black">{agent.name}</p>
+                        <p className="text-[10px] font-black uppercase">#{agent.n}</p>
+                        <p className="text-xs font-bold uppercase whitespace-nowrap">{agent.name}</p>
                       </div>
                     </motion.div>
                     {i < arr.length - 1 && (
@@ -232,45 +234,45 @@ export default function DashboardPage() {
         {/* Lead List */}
         <FadeIn delay={0.2}>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b-2 border-black pb-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-foreground">Recent Missions</h2>
-                <Badge variant="secondary" className="text-[10px] font-mono">
+                <h2 className="text-sm font-black uppercase tracking-wider">Recent Missions</h2>
+                <span className="text-[10px] font-black border-2 border-black px-2 py-0.5 bg-secondary shadow-[1px_1px_0_0_#000]">
                   {leads.length}
-                </Badge>
+                </span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Clock className="size-3" /> Auto-refreshing every 15s
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase">
+                <Clock className="size-3" /> Auto-refreshes every 15s
               </div>
             </div>
 
             {loading && !leads.length && (
-              <Card className="border-border/50 bg-card/30">
+              <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] rounded-none">
                 <CardContent className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="size-10 rounded-xl bg-muted/50 flex items-center justify-center">
-                      <RefreshCw className="size-5 text-muted-foreground animate-spin" />
+                    <div className="size-12 border-2 border-black bg-secondary flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                      <RefreshCw className="size-5 text-black animate-spin" />
                     </div>
-                    <p className="text-sm text-muted-foreground">Loading missions…</p>
+                    <p className="text-sm font-bold uppercase">Loading missions…</p>
                   </div>
                 </CardContent>
               </Card>
             )}
 
             {!loading && !leads.length && (
-              <Card className="border-border/50 bg-card/30 border-dashed">
+              <Card className="border-2 border-black border-dashed rounded-none">
                 <CardContent className="py-16 text-center">
                   <div className="flex flex-col items-center gap-4">
-                    <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <Send className="size-6 text-primary" />
+                    <div className="size-14 border-2 border-black bg-secondary flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+                      <Send className="size-6 text-black" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium mb-1">No missions yet</p>
-                      <p className="text-xs text-muted-foreground mb-4">
+                      <p className="text-sm font-black uppercase mb-1">No missions yet</p>
+                      <p className="text-xs text-muted-foreground font-semibold mb-4">
                         Launch your first autonomous outreach pipeline
                       </p>
                       <Link to="/dashboard/new">
-                        <Button size="sm" className="gap-1.5 bg-linear-to-r from-green-deep to-green-mid text-white border-0">
+                        <Button size="sm" className="gap-1.5 bg-primary text-white border-2 border-black shadow-[2px_2px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-black uppercase rounded-none">
                           <Plus className="size-3.5" /> Launch Pipeline
                         </Button>
                       </Link>
@@ -283,7 +285,7 @@ export default function DashboardPage() {
             <ScrollArea className="max-h-105">
               <div className="space-y-3 pb-4">
                 {leads.map((lead, i) => {
-                  const statusInfo = STATUS_BADGE[lead.status] || { color: "purple", label: lead.status };
+                  const statusInfo = STATUS_BADGE[lead.status] || { bg: "bg-muted text-black", label: lead.status };
                   return (
                     <motion.div
                       key={lead.id}
@@ -292,22 +294,22 @@ export default function DashboardPage() {
                       transition={{ delay: i * 0.05 }}
                     >
                       <Link to={`/dashboard/pipeline/${lead.id}`} className="block group">
-                        <Card className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[0px_0px_0_0_#000] rounded-md">
+                        <Card className="border-2 border-black bg-white shadow-[4px_4px_0_0_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none rounded-none">
                           <CardContent className="p-4 flex items-center gap-4">
-                            <div className="size-12 rounded-md bg-transparent border-2 border-black shadow-[2px_2px_0_0_#000] flex items-center justify-center shrink-0">
+                            <div className="size-12 rounded-none bg-secondary border-2 border-black shadow-[2px_2px_0_0_#000] flex items-center justify-center shrink-0">
                               <Building2 className="size-6 text-black" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <p className="font-bold text-base truncate uppercase tracking-tight">{lead.companyName}</p>
-                                <Badge className="rounded-none border-2 border-black bg-muted text-black shadow-[2px_2px_0_0_#000] uppercase font-bold text-[10px]">
+                                <p className="font-black text-base truncate uppercase tracking-tight">{lead.companyName}</p>
+                                <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 border-2 border-black shadow-[1px_1px_0_0_#000] uppercase ${statusInfo.bg}`}>
                                   {lead.status === "pipeline_running" && <StatusDot status="running" />}
                                   {statusInfo.label}
-                                </Badge>
+                                </span>
                                 {lead.source && (
-                                  <Badge className="rounded-none border-2 border-black bg-primary text-white shadow-[2px_2px_0_0_#000] uppercase font-bold text-[10px]">
+                                  <span className="text-[10px] font-black border-2 border-black px-2 py-0.5 bg-primary text-white shadow-[1px_1px_0_0_#000] uppercase">
                                     {lead.source}
-                                  </Badge>
+                                  </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground">

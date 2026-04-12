@@ -27,7 +27,7 @@ const statusConfig = {
   },
   running: {
     border: "border-2 border-black",
-    bg: "bg-[#CEEBFC]",
+    bg: "bg-secondary",
     glow: "shadow-[8px_8px_0_0_#000] -translate-y-1",
   },
   complete: {

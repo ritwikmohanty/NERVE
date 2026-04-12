@@ -16,7 +16,7 @@ import { api } from "@/lib/api";
 
 const NAV = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Command Center", accent: "bg-primary" },
-  { to: "/dashboard/new", icon: UserPlus, label: "New Mission", accent: "bg-[#CEEBFC]" },
+  { to: "/dashboard/new", icon: UserPlus, label: "New Mission", accent: "bg-secondary" },
   { to: "/dashboard/activity", icon: Activity, label: "Activity", accent: "bg-secondary" },
   { to: "/dashboard/calendar", icon: Calendar, label: "Calendar", accent: "bg-[#FFDA5C]" },
 ] as const;

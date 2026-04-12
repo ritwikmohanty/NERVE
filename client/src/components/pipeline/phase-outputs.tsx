@@ -92,11 +92,11 @@ export function DataChip({
 }) {
   const variants = {
     default: "bg-white text-black border-2 border-black shadow-[2px_2px_0_0_#000]",
-    emerald: "bg-[#599D77] text-white border-2 border-black shadow-[2px_2px_0_0_#000]",
-    purple: "bg-[#A42439] text-white border-2 border-black shadow-[2px_2px_0_0_#000]",
-    cyan: "bg-[#CEEBFC] text-black border-2 border-black shadow-[2px_2px_0_0_#000]",
-    orange: "bg-[#FFDA5C] text-black border-2 border-black shadow-[2px_2px_0_0_#000]",
-    red: "bg-[#EA435F] text-white border-2 border-black shadow-[2px_2px_0_0_#000]",
+    emerald: "bg-black text-white border-2 border-black shadow-[2px_2px_0_0_#000]",
+    purple: "bg-primary text-white border-2 border-black shadow-[2px_2px_0_0_#000]",
+    cyan: "bg-secondary text-black border-2 border-black shadow-[2px_2px_0_0_#000]",
+    orange: "bg-secondary text-black border-2 border-black shadow-[2px_2px_0_0_#000]",
+    red: "bg-primary text-white border-2 border-black shadow-[2px_2px_0_0_#000]",
   };
 
   return (
@@ -183,7 +183,7 @@ export function AgentTile({
             status === "running"
               ? "text-black bg-white p-1 border-2 border-black"
               : status === "complete"
-              ? "text-white bg-[#599D77] p-1 border-2 border-black"
+              ? "text-white bg-black p-1 border-2 border-black"
               : "text-muted-foreground/60 p-1"
           }
         >
@@ -202,7 +202,7 @@ export function AgentTile({
           </motion.div>
         )}
         {status === "complete" && (
-          <CheckCircle className="size-5 text-[#599D77] ml-auto border-2 border-black rounded-full bg-white shadow-[2px_2px_0_0_#000]" />
+          <CheckCircle className="size-5 text-black ml-auto border-2 border-black rounded-full bg-white shadow-[2px_2px_0_0_#000]" />
         )}
       </div>
       {children && (
