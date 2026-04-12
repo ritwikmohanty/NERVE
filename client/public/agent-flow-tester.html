@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NERVE 10-Agent Flow Tester</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    />
+    <style>
+      :root {
+        --paper-1: #f8f3e8;
+        --paper-2: #f0e7d4;
+        --ink: #1e2a2f;
+        --muted: #56666c;
+        --sea: #0f7f78;
+        --sun: #cf6a2e;
+        --ok: #177245;
+        --warn: #946017;
+        --err: #9f1f31;
+        --idle: #78858a;
+        --card: rgba(255, 255, 255, 0.74);
+        --line: rgba(30, 42, 47, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "IBM Plex Sans", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 10%, rgba(15, 127, 120, 0.15), transparent 35%),
+          radial-gradient(circle at 90% 90%, rgba(207, 106, 46, 0.14), transparent 32%),
+          linear-gradient(160deg, var(--paper-1), var(--paper-2));
+        padding: 28px;
+      }
+
+      .shell {
+        max-width: 1300px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(27, 40, 44, 0.09);
+        backdrop-filter: blur(5px);
+      }
+
+      .hero {
+        padding: 20px 24px;
+        display: grid;
+        gap: 4px;
+      }
+
+      .title {
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-size: clamp(1.7rem, 3vw, 2.55rem);
+        letter-spacing: 0.4px;
+        line-height: 1.1;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .controls {
+        padding: 18px;
+      }
+
+      .control-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #334148;
+      }
+
+      .field input,
+      .field textarea {
+        width: 100%;
+        border: 1px solid rgba(30, 42, 47, 0.2);
+        border-radius: 10px;
+        padding: 10px 11px;
+        font: inherit;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .field textarea {
+        resize: vertical;
+        min-height: 90px;
+        grid-column: span 3;
+      }
+
+      .btn-row {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 16px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        cursor: pointer;
+        transition: transform 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .btn-primary {
+        color: #fff;
+        background: linear-gradient(92deg, #0f7f78, #0e9e95);
+        box-shadow: 0 8px 18px rgba(15, 127, 120, 0.26);
+      }
+
+      .btn-secondary {
+        background: rgba(15, 127, 120, 0.12);
+        color: #0d5853;
+      }
+
+      .btn-danger {
+        background: rgba(159, 31, 49, 0.12);
+        color: #7a1325;
+      }
+
+      .meta {
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .meta-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .meta-item {
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+
+      .meta-item small {
+        display: block;
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+
+      .meta-item strong {
+        display: block;
+        font-size: 0.92rem;
+        margin-top: 2px;
+        word-break: break-all;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1px;
+      }
+
+      .pill.idle {
+        background: rgba(120, 133, 138, 0.2);
+        color: #39464b;
+      }
+
+      .pill.running {
+        background: rgba(148, 96, 23, 0.2);
+        color: #6b430e;
+      }
+
+      .pill.complete {
+        background: rgba(23, 114, 69, 0.2);
+        color: #0c5b32;
+      }
+
+      .pill.error {
+        background: rgba(159, 31, 49, 0.2);
+        color: #761325;
+      }
+
+      .progress-wrap {
+        display: grid;
+        gap: 6px;
+      }
+
+      .progress-bar {
+        height: 13px;
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.7);
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #0f7f78, #cf6a2e);
+        transition: width 0.2s ease;
+      }
+
+      .agents {
+        padding: 16px;
+      }
+
+      .agents h2,
+      .stream h2,
+      .snapshot h2 {
+        margin: 0 0 10px;
+        font-family: "Fraunces", serif;
+        font-size: 1.33rem;
+      }
+
+      .agent-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .agent-card {
+        position: relative;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.78);
+        padding: 10px;
+        display: grid;
+        gap: 5px;
+        animation: pop 0.24s ease both;
+      }
+
+      .agent-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 12px 12px 0 0;
+        background: rgba(120, 133, 138, 0.5);
+      }
+
+      .agent-card.running::before {
+        background: var(--warn);
+      }
+
+      .agent-card.complete::before {
+        background: var(--ok);
+      }
+
+      .agent-card.error::before {
+        background: var(--err);
+      }
+
+      .agent-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .agent-no {
+        font-family: "Fraunces", serif;
+        font-size: 0.95rem;
+        color: #394850;
+      }
+
+      .agent-name {
+        font-size: 0.86rem;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+
+      .agent-summary {
+        margin: 0;
+        min-height: 34px;
+        font-size: 0.76rem;
+        color: #44565d;
+      }
+
+      .agent-time {
+        font-size: 0.7rem;
+        color: #64757c;
+      }
+
+      .stream {
+        padding: 16px;
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 10px;
+      }
+
+      .log,
+      .json-pane {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.72);
+        margin: 0;
+        padding: 10px;
+        font-family: "IBM Plex Mono", "Consolas", monospace;
+        font-size: 0.76rem;
+        line-height: 1.42;
+        max-height: 315px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+
+      .output-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .json-block h3 {
+        margin: 0 0 4px;
+        font-size: 0.8rem;
+        color: #34444c;
+      }
+
+      .snapshot {
+        padding: 16px;
+      }
+
+      .hint {
+        margin: 2px 0 0;
+        font-size: 0.82rem;
+        color: #5d6e76;
+      }
+
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 1150px) {
+        .control-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .field textarea {
+          grid-column: span 2;
+        }
+
+        .agent-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .meta-row {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        body {
+          padding: 14px;
+        }
+
+        .control-grid,
+        .agent-grid,
+        .stream,
+        .meta-row {
+          grid-template-columns: 1fr;
+        }
+
+        .field textarea {
+          grid-column: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel hero">
+        <h1 class="title">NERVE Full 10-Agent Pipeline Tester</h1>
+        <p class="subtitle">
+          Start one targeted lead run, stream every SSE event in realtime, and validate all agents from 1 to 10.
+        </p>
+      </section>
+
+      <section class="panel controls">
+        <form id="pipeline-form">
+          <div class="control-grid">
+            <div class="field">
+              <label for="server-url">Server Base URL</label>
+              <input id="server-url" value="" placeholder="http://localhost:3001" />
+            </div>
+
+            <div class="field">
+              <label for="company-name">Company Name *</label>
+              <input id="company-name" value="Freshworks" required />
+            </div>
+
+            <div class="field">
+              <label for="contact-name">Contact Name</label>
+              <input id="contact-name" value="Aarav Mehta" />
+            </div>
+
+            <div class="field">
+              <label for="contact-title">Contact Title</label>
+              <input id="contact-title" value="VP Engineering" />
+            </div>
+
+            <div class="field">
+              <label for="contact-email">Contact Email</label>
+              <input id="contact-email" value="aarav.mehta@freshworks.com" />
+            </div>
+
+            <div class="field">
+              <label for="contact-linkedin">Contact LinkedIn</label>
+              <input id="contact-linkedin" value="https://linkedin.com/in/aarav-mehta" />
+            </div>
+
+            <div class="field">
+              <label for="location">Location</label>
+              <input id="location" value="Bangalore, India" />
+            </div>
+
+            <div class="field">
+              <label for="additional-context">Additional Context</label>
+              <textarea id="additional-context">Looking for intent signals and complete 3-touch outreach strategy in simulation mode.</textarea>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button type="submit" class="btn-primary">Run Full 10-Agent Flow</button>
+            <button type="button" id="disconnect-btn" class="btn-secondary">Disconnect SSE</button>
+            <button type="button" id="clear-btn" class="btn-danger">Clear State</button>
+          </div>
+        </form>
+        <p class="hint">
+          Expected endpoint flow: POST /api/leads/execute and SSE stream from GET /api/events.
+        </p>
+      </section>
+
+      <section class="panel meta">
+        <div class="meta-row">
+          <div class="meta-item">
+            <small>Connection</small>
+            <strong><span id="connection-pill" class="pill idle">Disconnected</span></strong>
+          </div>
+
+          <div class="meta-item">
+            <small>Run Status</small>
+            <strong><span id="run-pill" class="pill idle">idle</span></strong>
+          </div>
+
+          <div class="meta-item">
+            <small>Pipeline ID</small>
+            <strong id="pipeline-id">-</strong>
+          </div>
+
+          <div class="meta-item">
+            <small>Lead ID</small>
+            <strong id="lead-id">-</strong>
+          </div>
+
+          <div class="meta-item">
+            <small>Last Event</small>
+            <strong id="last-event">-</strong>
+          </div>
+        </div>
+
+        <div class="progress-wrap">
+          <small id="progress-label">Agent progress: 0 / 10 complete</small>
+          <div class="progress-bar" aria-label="Agent completion progress">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel agents">
+        <h2>Agent State Board</h2>
+        <div class="agent-grid" id="agent-grid"></div>
+      </section>
+
+      <section class="panel stream">
+        <div>
+          <h2>Realtime Event Log</h2>
+          <pre id="event-log" class="log">No events yet.</pre>
+        </div>
+
+        <div class="output-grid">
+          <div class="json-block">
+            <h3>Intent + Persona + Response</h3>
+            <pre id="insight-output" class="json-pane">No data yet.</pre>
+          </div>
+
+          <div class="json-block">
+            <h3>Strategy + Content + Delivery</h3>
+            <pre id="execution-output" class="json-pane">No data yet.</pre>
+          </div>
+
+          <div class="json-block">
+            <h3>Branch + Learning + Completion</h3>
+            <pre id="learning-output" class="json-pane">No data yet.</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel snapshot">
+        <h2>Final Lead Snapshot (/api/leads/:id)</h2>
+        <pre id="snapshot-output" class="json-pane">No lead snapshot loaded yet.</pre>
+      </section>
+    </main>
+
+    <script>
+      function detectDefaultServerUrl() {
+        const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+        const host = window.location.hostname || "localhost";
+        return `${protocol}//${host}:3001`;
+      }
+
+      const AGENTS = [
+        { number: 1, name: "Lead Ingestion" },
+        { number: 2, name: "Signal Scout" },
+        { number: 3, name: "Intent Scorer" },
+        { number: 4, name: "Persona Analyst" },
+        { number: 5, name: "Strategy Commander" },
+        { number: 6, name: "Content Forge" },
+        { number: 7, name: "Explainer" },
+        { number: 8, name: "Delivery Agent" },
+        { number: 9, name: "Response Monitor" },
+        { number: 10, name: "Learning Loop" },
+      ];
+
+      const state = {
+        serverUrl: detectDefaultServerUrl(),
+        pipelineId: "",
+        leadId: "",
+        connectionStatus: "disconnected",
+        runStatus: "idle",
+        lastEvent: "",
+        eventSource: null,
+        logs: [],
+        agents: Object.fromEntries(
+          AGENTS.map((a) => [
+            a.number,
+            { status: "idle", summary: "Waiting", timestamp: "" },
+          ])
+        ),
+        output: {
+          leads: null,
+          signal: null,
+          intent: null,
+          persona: null,
+          strategy: null,
+          content: null,
+          delivery: [],
+          response: null,
+          rationale: null,
+          branch: null,
+          learning: null,
+          complete: null,
+          snapshot: null,
+        },
+      };
+
+      const node = {
+        form: document.getElementById("pipeline-form"),
+        serverUrl: document.getElementById("server-url"),
+        runPill: document.getElementById("run-pill"),
+        connectionPill: document.getElementById("connection-pill"),
+        pipelineId: document.getElementById("pipeline-id"),
+        leadId: document.getElementById("lead-id"),
+        lastEvent: document.getElementById("last-event"),
+        progressLabel: document.getElementById("progress-label"),
+        progressFill: document.getElementById("progress-fill"),
+        agentGrid: document.getElementById("agent-grid"),
+        eventLog: document.getElementById("event-log"),
+        insightOutput: document.getElementById("insight-output"),
+        executionOutput: document.getElementById("execution-output"),
+        learningOutput: document.getElementById("learning-output"),
+        snapshotOutput: document.getElementById("snapshot-output"),
+        disconnectBtn: document.getElementById("disconnect-btn"),
+        clearBtn: document.getElementById("clear-btn"),
+      };
+
+      function cleanServerUrl(raw) {
+        return raw.trim().replace(/\/+$/, "");
+      }
+
+      function asJson(value) {
+        if (!value) return "No data yet.";
+        return JSON.stringify(value, null, 2);
+      }
+
+      function toClock(timestamp) {
+        if (!timestamp) return "-";
+        return new Date(timestamp).toLocaleTimeString();
+      }
+
+      function setPill(el, text, mode) {
+        el.textContent = text;
+        el.className = `pill ${mode}`;
+      }
+
+      function appendLog(line) {
+        const stamp = new Date().toLocaleTimeString();
+        state.logs.push(`[${stamp}] ${line}`);
+        state.logs = state.logs.slice(-220);
+        node.eventLog.textContent = state.logs.join("\n") || "No events yet.";
+        node.eventLog.scrollTop = node.eventLog.scrollHeight;
+      }
+
+      function setRunStatus(status) {
+        state.runStatus = status;
+        setPill(node.runPill, status, status);
+      }
+
+      function setConnectionStatus(status) {
+        state.connectionStatus = status;
+        const label = status === "connected" ? "Connected" : "Disconnected";
+        setPill(node.connectionPill, label, status === "connected" ? "complete" : "idle");
+      }
+
+      function resetRunState() {
+        state.pipelineId = "";
+        state.leadId = "";
+        state.lastEvent = "";
+        state.output = {
+          leads: null,
+          signal: null,
+          intent: null,
+          persona: null,
+          strategy: null,
+          content: null,
+          delivery: [],
+          response: null,
+          rationale: null,
+          branch: null,
+          learning: null,
+          complete: null,
+          snapshot: null,
+        };
+
+        AGENTS.forEach((agent) => {
+          state.agents[agent.number] = {
+            status: "idle",
+            summary: "Waiting",
+            timestamp: "",
+          };
+        });
+      }
+
+      function completedAgents() {
+        return AGENTS.reduce(
+          (sum, a) => sum + (state.agents[a.number].status === "complete" ? 1 : 0),
+          0
+        );
+      }
+
+      function renderMeta() {
+        node.pipelineId.textContent = state.pipelineId || "-";
+        node.leadId.textContent = state.leadId || "-";
+        node.lastEvent.textContent = state.lastEvent || "-";
+
+        const done = completedAgents();
+        node.progressLabel.textContent = `Agent progress: ${done} / 10 complete`;
+        node.progressFill.style.width = `${(done / 10) * 100}%`;
+      }
+
+      function renderAgents() {
+        node.agentGrid.innerHTML = AGENTS.map((agent) => {
+          const current = state.agents[agent.number];
+          return `
+            <article class="agent-card ${current.status}">
+              <div class="agent-top">
+                <span class="agent-no">Agent ${agent.number}</span>
+                <span class="pill ${current.status}">${current.status}</span>
+              </div>
+              <strong class="agent-name">${agent.name}</strong>
+              <p class="agent-summary">${current.summary || "-"}</p>
+              <span class="agent-time">${current.timestamp ? `Updated ${toClock(current.timestamp)}` : "Not started"}</span>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function renderOutputs() {
+        node.insightOutput.textContent = asJson({
+          leads: state.output.leads,
+          signal: state.output.signal,
+          intent: state.output.intent,
+          persona: state.output.persona,
+          response: state.output.response,
+        });
+
+        node.executionOutput.textContent = asJson({
+          strategy: state.output.strategy,
+          content: state.output.content,
+          delivery: state.output.delivery,
+          rationale: state.output.rationale,
+        });
+
+        node.learningOutput.textContent = asJson({
+          branch: state.output.branch,
+          learning: state.output.learning,
+          complete: state.output.complete,
+        });
+
+        node.snapshotOutput.textContent = asJson(state.output.snapshot);
+      }
+
+      function renderAll() {
+        renderMeta();
+        renderAgents();
+        renderOutputs();
+      }
+
+      function updateAgentStatus(agentNumber, status, summary, timestamp) {
+        if (!state.agents[agentNumber]) return;
+
+        state.agents[agentNumber] = {
+          status: status || state.agents[agentNumber].status,
+          summary: summary || state.agents[agentNumber].summary,
+          timestamp: timestamp || new Date().toISOString(),
+        };
+
+        if (status === "running") {
+          setRunStatus("running");
+        }
+
+        if (status === "error") {
+          setRunStatus("error");
+        }
+      }
+
+      async function fetchLeadSnapshot() {
+        if (!state.leadId) return;
+
+        try {
+          const response = await fetch(`${state.serverUrl}/api/leads/${encodeURIComponent(state.leadId)}`);
+          const data = await response.json();
+          if (!response.ok) {
+            appendLog(`Snapshot request failed: ${data.error || response.statusText}`);
+            return;
+          }
+          state.output.snapshot = data;
+          appendLog("Loaded final lead snapshot from /api/leads/:id");
+          renderOutputs();
+        } catch (error) {
+          appendLog(`Snapshot request failed: ${error.message}`);
+        }
+      }
+
+      function handleSseEvent(raw) {
+        let event;
+        try {
+          event = JSON.parse(raw.data);
+        } catch {
+          appendLog(`Received non-JSON SSE chunk: ${raw.data.slice(0, 140)}`);
+          return;
+        }
+
+        if (event.data && event.data.pipelineId && state.pipelineId && event.data.pipelineId !== state.pipelineId) {
+          return;
+        }
+
+        state.lastEvent = event.type || "unknown";
+        if (event.leadId && event.leadId !== "pipeline" && event.leadId !== "system") {
+          state.leadId = event.leadId;
+        }
+
+        if (event.type === "connected") {
+          appendLog("SSE connected and listening");
+          renderMeta();
+          return;
+        }
+
+        if (event.type === "agent_status") {
+          const payload = event.data || {};
+          updateAgentStatus(
+            Number(payload.agentNumber),
+            payload.status,
+            payload.outputSummary || payload.error || "",
+            event.timestamp
+          );
+          appendLog(
+            `Agent ${payload.agentNumber || "?"} ${payload.agentName || ""}: ${payload.status}${payload.outputSummary ? ` | ${payload.outputSummary}` : ""}`
+          );
+        }
+
+        if (event.type === "signal_update") {
+          state.output.signal = event.data;
+        }
+
+        if (event.type === "strategy_update") {
+          state.output.strategy = event.data;
+        }
+
+        if (event.type === "content_update") {
+          state.output.content = event.data;
+        }
+
+        if (event.type === "rationale_update") {
+          state.output.rationale = event.data;
+        }
+
+        if (event.type === "delivery_update") {
+          state.output.delivery.push(event.data);
+          state.output.delivery = state.output.delivery.slice(-20);
+        }
+
+        if (event.type === "response_update") {
+          state.output.response = event.data;
+        }
+
+        if (event.type === "learning_update") {
+          state.output.learning = event.data;
+        }
+
+        if (event.type === "branch_decision") {
+          state.output.branch = event.data;
+          appendLog(`Branch decision: ${event.data.action || "unknown"}`);
+        }
+
+        if (event.type === "pipeline_complete") {
+          state.output.complete = event.data;
+          setRunStatus("complete");
+          appendLog(`Pipeline complete: ${event.data.status || "completed"}`);
+          fetchLeadSnapshot();
+        }
+
+        if (event.type === "error") {
+          setRunStatus("error");
+          appendLog(`Pipeline error: ${JSON.stringify(event.data)}`);
+        }
+
+        if (event.type === "score_update") {
+          if (event.data && typeof event.data.compositeScore === "number") {
+            state.output.intent = event.data;
+          } else if (event.data && event.data.persona) {
+            state.output.persona = event.data.persona;
+          } else if (event.data && Array.isArray(event.data.leads)) {
+            state.output.leads = event.data.leads;
+          }
+        }
+
+        renderAll();
+      }
+
+      function disconnectSse() {
+        if (state.eventSource) {
+          state.eventSource.close();
+          state.eventSource = null;
+        }
+        setConnectionStatus("disconnected");
+      }
+
+      function connectSse() {
+        disconnectSse();
+        const streamUrl = `${state.serverUrl}/api/events`;
+        state.eventSource = new EventSource(streamUrl);
+
+        state.eventSource.onopen = () => {
+          setConnectionStatus("connected");
+          appendLog(`Connected to ${streamUrl}`);
+          renderMeta();
+        };
+
+        state.eventSource.onmessage = handleSseEvent;
+
+        state.eventSource.onerror = () => {
+          setConnectionStatus("disconnected");
+          appendLog("SSE disconnected. Browser may retry automatically.");
+          renderMeta();
+        };
+      }
+
+      async function pingHealth() {
+        const response = await fetch(`${state.serverUrl}/api/health`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Health check failed");
+        }
+
+        appendLog(
+          `Health: simulationMode=${String(data.simulationMode)}, connectedClients=${String(data.connectedClients)}`
+        );
+      }
+
+      async function startPipeline(event) {
+        event.preventDefault();
+
+        const companyName = document.getElementById("company-name").value.trim();
+        if (!companyName) {
+          appendLog("Company Name is required.");
+          return;
+        }
+
+        state.serverUrl = cleanServerUrl(node.serverUrl.value);
+
+        resetRunState();
+        setRunStatus("running");
+        renderAll();
+
+        try {
+          await pingHealth();
+          connectSse();
+
+          const body = {
+            companyName,
+            contactName: document.getElementById("contact-name").value.trim() || undefined,
+            contactTitle: document.getElementById("contact-title").value.trim() || undefined,
+            contactEmail: document.getElementById("contact-email").value.trim() || undefined,
+            contactLinkedIn: document.getElementById("contact-linkedin").value.trim() || undefined,
+            location: document.getElementById("location").value.trim() || undefined,
+            additionalContext:
+              document.getElementById("additional-context").value.trim() || undefined,
+          };
+
+          const response = await fetch(`${state.serverUrl}/api/leads/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Unable to start pipeline");
+          }
+
+          state.pipelineId = data.pipelineId;
+          appendLog(`Started pipeline ${state.pipelineId} for ${body.companyName}`);
+          renderMeta();
+        } catch (error) {
+          setRunStatus("error");
+          appendLog(`Failed to start pipeline: ${error.message}`);
+          renderMeta();
+        }
+      }
+
+      function clearEverything() {
+        disconnectSse();
+        resetRunState();
+        state.logs = [];
+        setRunStatus("idle");
+        appendLog("State cleared.");
+        renderAll();
+      }
+
+      node.form.addEventListener("submit", startPipeline);
+      node.disconnectBtn.addEventListener("click", disconnectSse);
+      node.clearBtn.addEventListener("click", clearEverything);
+
+      window.addEventListener("beforeunload", disconnectSse);
+
+      node.serverUrl.value = state.serverUrl;
+      renderAll();
+    </script>
+  </body>
+</html>

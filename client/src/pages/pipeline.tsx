@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import { useSSE } from "@/hooks/use-sse";
 import { api } from "@/lib/api";
 import type { LeadDetail } from "@/lib/types";
@@ -9,7 +8,8 @@ import RightPanel from "@/components/right-panel";
 import ActivityLog from "@/components/activity-log";
 import SimulateReply from "@/components/simulate-reply";
 import { Button } from "@/components/ui/button";
-import { GlowingBadge, StatusDot } from "@/components/ui/motion";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowLeft,
   Wifi,
@@ -17,12 +17,11 @@ import {
   RefreshCw,
   Building2,
   User,
-  Zap,
   ToggleLeft,
   ToggleRight,
-  Circle,
   CheckCircle2,
   Loader2,
+  Clock3,
 } from "lucide-react";
 
 export default function PipelinePage() {
@@ -76,164 +75,133 @@ export default function PipelinePage() {
   const isRunning = realEvents.length > 0 && !pipelineComplete;
   const completedAgents = detail?.agentRuns?.filter((r) => r.status === "complete").length || 0;
 
+  const statusBadge = pipelineComplete
+    ? { label: "Complete", variant: "default" as const }
+    : isRunning
+      ? { label: `Running (${completedAgents}/10)`, variant: "secondary" as const }
+      : { label: "Idle", variant: "outline" as const };
+
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* ── Top Bar ─────────────────────────────────────────── */}
-      <div className="shrink-0 px-4 py-2.5 border-b border-border/40 flex items-center gap-3 bg-card/20 backdrop-blur-sm">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3">
         <Link to="/">
-          <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs hover:bg-primary/10 hover:text-primary">
-            <ArrowLeft className="size-3" /> Back
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <ArrowLeft className="size-4" /> Back
           </Button>
         </Link>
 
-        <div className="h-4 w-px bg-border/40" />
-
-        {lead ? (
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2 min-w-0"
-          >
-            <div className="size-6 rounded-md bg-primary/15 flex items-center justify-center">
-              <Building2 className="size-3.5 text-primary" />
+        <div className="min-w-0">
+          {lead ? (
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Building2 className="size-4 text-muted-foreground" />
+                <p className="truncate text-sm font-medium">{lead.companyName}</p>
+              </div>
+              {lead.contactName ? (
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <User className="size-3" /> {lead.contactName}
+                </p>
+              ) : null}
             </div>
-            <span className="text-sm font-semibold truncate">{lead.companyName}</span>
-            {lead.contactName && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <User className="size-3 text-muted-foreground/60" />
-                <span className="text-xs text-muted-foreground truncate">{lead.contactName}</span>
-              </>
-            )}
-          </motion.div>
-        ) : (
-          <span className="text-sm text-muted-foreground">
-            {loading ? (
-              <span className="flex items-center gap-1.5">
-                <Loader2 className="size-3 animate-spin" /> Loading…
-              </span>
-            ) : (
-              "Pipeline"
-            )}
-          </span>
-        )}
-
-        {/* Pipeline Status */}
-        <div className="flex items-center gap-1.5 ml-2">
-          {pipelineComplete ? (
-            <GlowingBadge variant="emerald" pulse>
-              <CheckCircle2 className="size-2.5 mr-1" /> Complete
-            </GlowingBadge>
-          ) : isRunning ? (
-            <GlowingBadge variant="purple" pulse>
-              <StatusDot status="running" /> Running — {completedAgents}/10
-            </GlowingBadge>
           ) : (
-            <GlowingBadge variant="cyan">
-              <Circle className="size-2.5 mr-1" /> Idle
-            </GlowingBadge>
+            <p className="text-sm text-muted-foreground">
+              {loading ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="size-4 animate-spin" /> Loading pipeline
+                </span>
+              ) : (
+                "Pipeline"
+              )}
+            </p>
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          {/* Simulation toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 h-7 text-xs hover:bg-blue-500/10"
-            onClick={toggleSimulation}
-          >
-            {simMode ? (
-              <ToggleRight className="size-3.5 text-blue-400" />
-            ) : (
-              <ToggleLeft className="size-3.5 text-muted-foreground" />
-            )}
-            <span className="font-mono text-[10px]">SIM {simMode ? "ON" : "OFF"}</span>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Badge variant={statusBadge.variant} className="rounded-sm px-2">
+            {pipelineComplete ? <CheckCircle2 className="size-3" /> : null}
+            {statusBadge.label}
+          </Badge>
+
+          <Badge variant="outline" className="rounded-sm px-2">
+            {connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
+            {connected ? "SSE connected" : "SSE offline"}
+          </Badge>
+
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={toggleSimulation}>
+            {simMode ? <ToggleRight className="size-4" /> : <ToggleLeft className="size-4" />}
+            Simulation {simMode ? "On" : "Off"}
           </Button>
 
-          {/* Connection indicator */}
-          <div
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-medium border ${
-              connected
-                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400"
-                : "border-red-500/30 bg-red-500/5 text-red-400"
-            }`}
-          >
-            {connected ? <Wifi className="size-2.5" /> : <WifiOff className="size-2.5" />}
-            {connected ? "SSE Live" : "Disconnected"}
-          </div>
-
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-7 w-7 p-0 hover:bg-primary/10"
+            className="gap-1.5"
             onClick={() => {
               clear();
               fetchDetail();
             }}
           >
-            <RefreshCw className="size-3.5" />
+            <RefreshCw className="size-4" /> Refresh
           </Button>
         </div>
       </div>
 
-      {/* ── Main Content — 3 Column Layout ──────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left + Center: Graph + Activity */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Agent Graph */}
-          <div className="flex-1 min-h-0">
-            <AgentGraph sseEvents={events} agentRuns={detail?.agentRuns} />
-          </div>
+      <div className="min-h-0 flex-1 overflow-hidden p-4">
+        <div className="grid h-full gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-h-0 space-y-4">
+            <Card className="h-[56%] min-h-[320px] overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Agent Graph</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[calc(100%-3rem)] p-0">
+                <AgentGraph sseEvents={events} agentRuns={detail?.agentRuns} />
+              </CardContent>
+            </Card>
 
-          {/* Bottom bar: Activity + Simulate */}
-          <div className="shrink-0 h-56 border-t border-border/40 flex">
-            {/* Activity Log */}
-            <div className="flex-1 overflow-hidden">
-              <div className="px-3 py-1.5 border-b border-border/40 flex items-center gap-2 bg-card/20 backdrop-blur-sm">
-                <div className="size-4 rounded bg-primary/15 flex items-center justify-center">
-                  <Zap className="size-2.5 text-primary" />
-                </div>
-                <span className="text-xs font-medium">Activity Feed</span>
-                <div className="ml-auto flex items-center gap-1.5">
-                  {isRunning && (
-                    <span className="relative flex size-1.5">
-                      <span className="absolute inline-flex size-full rounded-full bg-primary/60 animate-ping" />
-                      <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-                    </span>
-                  )}
-                  <span className="text-[9px] font-mono text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded">
-                    {realEvents.length}
-                  </span>
-                </div>
-              </div>
-              <div className="h-[calc(100%-32px)]">
-                <ActivityLog events={events} />
-              </div>
-            </div>
+            <div className="grid h-[40%] min-h-[260px] gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+              <Card className="min-h-0 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Activity Log</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[calc(100%-3rem)] p-0">
+                  <ActivityLog events={events} />
+                </CardContent>
+              </Card>
 
-            {/* Simulate Reply Panel */}
-            <div className="w-72 shrink-0 border-l border-border/40 p-3 flex flex-col justify-center bg-card/10">
-              <SimulateReply
-                leadId={id || ""}
-                channel={
-                  detail?.agentOutputs
-                    ? ((detail.agentOutputs as Record<string, Record<string, unknown>>)["5"]
-                        ?.primaryChannel as "email" | "linkedin_dm" | "whatsapp") || "email"
-                    : "email"
-                }
-                disabled={!pipelineComplete && !detail?.agentRuns?.some((r) => r.agentNumber === 8 && r.status === "complete")}
-                onSent={() => {
-                  setTimeout(fetchDetail, 1000);
-                }}
-              />
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Response Simulation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs text-muted-foreground">
+                  <p className="inline-flex items-center gap-1">
+                    <Clock3 className="size-3" /> Use this to trigger Agent 9 and Agent 10 paths.
+                  </p>
+                  <SimulateReply
+                    leadId={id || ""}
+                    channel={
+                      detail?.agentOutputs
+                        ? ((detail.agentOutputs as Record<string, Record<string, unknown>>)["5"]
+                            ?.primaryChannel as "email" | "linkedin_dm" | "whatsapp") || "email"
+                        : "email"
+                    }
+                    disabled={!pipelineComplete && !detail?.agentRuns?.some((r) => r.agentNumber === 8 && r.status === "complete")}
+                    onSent={() => {
+                      setTimeout(fetchDetail, 1000);
+                    }}
+                  />
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </div>
 
-        {/* Right Panel */}
-        <div className="w-80 shrink-0 border-l border-border/40 overflow-hidden bg-card/10 backdrop-blur-sm">
-          <RightPanel sseEvents={events} detail={detail} />
+          <Card className="min-h-0 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Execution Details</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[calc(100%-3rem)] overflow-hidden p-0">
+              <RightPanel sseEvents={events} detail={detail} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

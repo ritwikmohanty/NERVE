@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   ThumbsUp,
   ThumbsDown,
-  Clock,
+  Clock3,
   Loader2,
-  Send,
   ArrowRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { GlowingBadge } from "@/components/ui/motion";
 import type { OutreachChannel } from "@/lib/types";
 
 interface Props {
@@ -24,29 +22,21 @@ const REPLIES: {
   label: string;
   icon: React.ReactNode;
   body: string;
-  color: string;
-  hoverColor: string;
 }[] = [
   {
     label: "Interested",
     icon: <ThumbsUp className="size-3.5" />,
     body: "That sounds really interesting! I'd love to learn more. Can we schedule a quick call this week?",
-    color: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20",
-    hoverColor: "hover:shadow-[0_0_16px_rgba(16,185,129,0.15)]",
   },
   {
     label: "Not Interested",
     icon: <ThumbsDown className="size-3.5" />,
     body: "Thanks but we're not looking at this kind of solution right now. Please remove me from your list.",
-    color: "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20",
-    hoverColor: "hover:shadow-[0_0_16px_rgba(239,68,68,0.15)]",
   },
   {
     label: "No Reply",
-    icon: <Clock className="size-3.5" />,
+    icon: <Clock3 className="size-3.5" />,
     body: "",
-    color: "bg-muted/50 border-border/50 text-muted-foreground hover:bg-muted",
-    hoverColor: "",
   },
 ];
 
@@ -82,21 +72,20 @@ export default function SimulateReply({ leadId, channel = "email", disabled, onS
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Send className="size-3.5 text-primary" />
-        <p className="text-xs font-semibold">Simulate Response</p>
-        <GlowingBadge variant="purple" className="ml-auto">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Simulate Response</p>
+        <Badge variant="outline" className="rounded-sm px-2 text-[11px]">
           {channel.replace(/_/g, " ")}
-        </GlowingBadge>
+        </Badge>
       </div>
 
-      <div className="flex gap-2">
+      <div className="grid gap-2">
         {REPLIES.map((r) => (
           <Button
             key={r.label}
             variant="outline"
             size="sm"
-            className={`flex-1 gap-1.5 text-[11px] h-9 border transition-all ${r.color} ${r.hoverColor}`}
+            className="justify-start gap-2"
             disabled={disabled || !!sending}
             onClick={() => send(r.label, r.body)}
           >
@@ -110,33 +99,29 @@ export default function SimulateReply({ leadId, channel = "email", disabled, onS
         ))}
       </div>
 
-      <AnimatePresence>
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 4, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -4, height: 0 }}
-            className="rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm p-3 space-y-2"
-          >
-            <div className="flex items-center gap-2">
-              <GlowingBadge
-                variant={
-                  result.sentiment === "positive" ? "emerald" :
-                  result.sentiment === "negative" ? "red" :
-                  "orange"
-                }
-              >
-                {result.sentiment}
-              </GlowingBadge>
-              <ArrowRight className="size-3 text-muted-foreground/50" />
-              <GlowingBadge variant="purple">
-                {result.action.replace(/_/g, " ")}
-              </GlowingBadge>
-            </div>
-            <p className="text-[10px] text-muted-foreground font-mono leading-relaxed">{result.reasoning}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {result ? (
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={
+                result.sentiment === "positive"
+                  ? "default"
+                  : result.sentiment === "negative"
+                    ? "destructive"
+                    : "secondary"
+              }
+              className="rounded-sm px-2 text-[11px]"
+            >
+              {result.sentiment}
+            </Badge>
+            <ArrowRight className="size-3 text-muted-foreground" />
+            <Badge variant="outline" className="rounded-sm px-2 text-[11px]">
+              {result.action.replace(/_/g, " ")}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">{result.reasoning}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

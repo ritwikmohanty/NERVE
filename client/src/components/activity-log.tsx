@@ -1,17 +1,16 @@
 import { useMemo, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  PlayCircle,
-  CheckCircle2,
+  Activity,
+  CheckCircle,
   AlertCircle,
-  Truck,
+  Send,
   MessageSquare,
   Brain,
-  Zap,
+  Gauge,
   GitBranch,
   Loader2,
-  Terminal,
+  Route,
 } from "lucide-react";
 import type { SSEEvent } from "@/lib/types";
 
@@ -21,73 +20,51 @@ interface Props {
 
 const EVENT_META: Record<
   string,
-  { icon: React.ReactNode; color: string; label: string; accent: string }
+  { icon: React.ReactNode; label: string }
 > = {
   agent_status: {
-    icon: <PlayCircle className="size-3.5" />,
-    color: "text-purple-400",
-    label: "AGENT",
-    accent: "border-l-purple-500",
+    icon: <Activity className="size-3.5" />,
+    label: "Agent",
   },
   score_update: {
-    icon: <Zap className="size-3.5" />,
-    color: "text-orange-400",
-    label: "SCORE",
-    accent: "border-l-orange-500",
+    icon: <Gauge className="size-3.5" />,
+    label: "Score",
   },
   strategy_update: {
-    icon: <Brain className="size-3.5" />,
-    color: "text-blue-400",
-    label: "STRATEGY",
-    accent: "border-l-blue-500",
+    icon: <Route className="size-3.5" />,
+    label: "Strategy",
   },
   content_update: {
     icon: <MessageSquare className="size-3.5" />,
-    color: "text-teal-400",
-    label: "CONTENT",
-    accent: "border-l-teal-500",
+    label: "Content",
   },
   rationale_update: {
     icon: <Brain className="size-3.5" />,
-    color: "text-indigo-400",
-    label: "RATIONALE",
-    accent: "border-l-indigo-500",
+    label: "Rationale",
   },
   delivery_update: {
-    icon: <Truck className="size-3.5" />,
-    color: "text-emerald-400",
-    label: "DELIVERY",
-    accent: "border-l-emerald-500",
+    icon: <Send className="size-3.5" />,
+    label: "Delivery",
   },
   response_update: {
     icon: <MessageSquare className="size-3.5" />,
-    color: "text-yellow-400",
-    label: "RESPONSE",
-    accent: "border-l-yellow-500",
+    label: "Response",
   },
   learning_update: {
-    icon: <Zap className="size-3.5" />,
-    color: "text-pink-400",
-    label: "LEARNING",
-    accent: "border-l-pink-500",
+    icon: <Brain className="size-3.5" />,
+    label: "Learning",
   },
   branch_decision: {
     icon: <GitBranch className="size-3.5" />,
-    color: "text-cyan-400",
-    label: "BRANCH",
-    accent: "border-l-cyan-500",
+    label: "Branch",
   },
   pipeline_complete: {
-    icon: <CheckCircle2 className="size-3.5" />,
-    color: "text-emerald-400",
-    label: "COMPLETE",
-    accent: "border-l-emerald-500",
+    icon: <CheckCircle className="size-3.5" />,
+    label: "Complete",
   },
   error: {
     icon: <AlertCircle className="size-3.5" />,
-    color: "text-red-400",
-    label: "ERROR",
-    accent: "border-l-red-500",
+    label: "Error",
   },
 };
 
@@ -124,7 +101,7 @@ function summarizeEvent(ev: SSEEvent): string {
     case "rationale_update":
       return `${(d.explanations as unknown[])?.length || 0} decision rationales`;
     case "delivery_update":
-      return `${(d.results as unknown[])?.length || 0} deliveries processed`;
+      return `Touch ${d.touchNumber || "?"} via ${d.channel || "channel"} (${d.status || "unknown"})`;
     case "response_update":
       return `Sentiment: ${d.sentiment} → ${d.action}`;
     case "learning_update":
@@ -155,57 +132,37 @@ export default function ActivityLog({ events }: Props) {
 
   if (!filtered.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8 gap-3">
-        <div className="relative">
-          <Terminal className="size-6 opacity-30" />
-          <Loader2 className="size-3 animate-spin absolute -top-1 -right-1 text-primary" />
-        </div>
-        <div className="text-center">
-          <p className="text-xs font-medium">Awaiting agent events…</p>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Real-time feed will appear here</p>
-        </div>
+      <div className="flex h-full flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        <p className="text-xs">Waiting for realtime events</p>
       </div>
     );
   }
 
   return (
     <ScrollArea className="h-full" ref={scrollRef}>
-      <div className="p-2 space-y-0.5">
-        <AnimatePresence>
-          {filtered.map((ev, i) => {
-            const meta = EVENT_META[ev.type] || {
-              icon: <Zap className="size-3.5" />,
-              color: "text-muted-foreground",
-              label: ev.type.toUpperCase(),
-              accent: "border-l-muted",
-            };
+      <div className="space-y-1.5 p-3">
+        {filtered.map((ev, i) => {
+          const meta = EVENT_META[ev.type] || {
+            icon: <Activity className="size-3.5" />,
+            label: ev.type,
+          };
 
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8, height: 0 }}
-                animate={{ opacity: 1, x: 0, height: "auto" }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className={`flex items-start gap-2.5 px-2.5 py-2 rounded-md border-l-2 bg-card/30 hover:bg-card/50 transition-colors ${meta.accent}`}
-              >
-                <div className={`mt-0.5 shrink-0 ${meta.color}`}>{meta.icon}</div>
-                <div className="flex-1 min-w-0">
+          return (
+            <div key={i} className="rounded-md border border-border px-3 py-2">
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 text-muted-foreground">{meta.icon}</div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[9px] font-mono font-bold tracking-wider ${meta.color}`}>
-                      {meta.label}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/50 font-mono">
-                      {formatTime(ev.timestamp)}
-                    </span>
+                    <span className="text-[11px] font-medium">{meta.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{formatTime(ev.timestamp)}</span>
                   </div>
-                  <p className="text-[11px] text-foreground/80 mt-0.5 leading-snug font-mono">
-                    {summarizeEvent(ev)}
-                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{summarizeEvent(ev)}</p>
                 </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </ScrollArea>
   );

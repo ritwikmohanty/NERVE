@@ -65,23 +65,13 @@ function buildEdges(statuses: Record<number, AgentStatus>): Edge[] {
     const fromComplete = statuses[fromNum] === "complete";
     const toActive = statuses[toNum] === "running" || statuses[toNum] === "complete";
 
-    // Dynamic styling based on state
-    let stroke = "rgba(80, 80, 100, 0.2)";
-    let strokeWidth = 1.5;
+    let stroke = "rgba(120, 130, 150, 0.25)";
+    let strokeWidth = 1.4;
     let animated = false;
 
     if (fromComplete && toActive) {
-      stroke = "rgba(16, 185, 129, 0.7)"; // emerald glow
-      strokeWidth = 2.5;
-      animated = true;
-    } else if (fromComplete) {
-      stroke = "rgba(16, 185, 129, 0.4)";
+      stroke = "rgba(41, 98, 255, 0.45)";
       strokeWidth = 2;
-    }
-
-    // Running edge gets purple glow
-    if (statuses[toNum] === "running" && fromComplete) {
-      stroke = "rgba(168, 85, 247, 0.7)"; // purple glow
       animated = true;
     }
 
@@ -93,7 +83,6 @@ function buildEdges(statuses: Record<number, AgentStatus>): Edge[] {
       style: {
         stroke,
         strokeWidth,
-        filter: animated ? "drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))" : undefined,
       },
     };
   });
@@ -125,9 +114,15 @@ export default function AgentGraph({ sseEvents, agentRuns }: Props) {
 
     for (const ev of sseEvents) {
       if (ev.type === "agent_status") {
-        const d = ev.data as { agentNumber?: number; status?: AgentStatus; summary?: string };
+        const d = ev.data as {
+          agentNumber?: number;
+          status?: AgentStatus;
+          summary?: string;
+          outputSummary?: string;
+        };
         if (d.agentNumber) {
           st[d.agentNumber] = d.status || "running";
+          if (d.outputSummary) sm[d.agentNumber] = d.outputSummary;
           if (d.summary) sm[d.agentNumber] = d.summary;
         }
       }
@@ -157,9 +152,7 @@ export default function AgentGraph({ sseEvents, agentRuns }: Props) {
   const onInit = useCallback(() => {}, []);
 
   return (
-    <div className="h-full w-full overflow-hidden relative">
-      {/* Subtle grid pattern overlay */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
+    <div className="h-full w-full overflow-hidden">
       <ReactFlow
         nodes={effectiveNodes}
         edges={effectiveEdges}
@@ -172,13 +165,13 @@ export default function AgentGraph({ sseEvents, agentRuns }: Props) {
         proOptions={{ hideAttribution: true }}
         minZoom={0.3}
         maxZoom={1.5}
-        className="bg-transparent"
+        className="bg-background"
       >
         <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1}
-          color="rgba(120, 120, 160, 0.12)"
+          variant={BackgroundVariant.Lines}
+          gap={28}
+          size={0.8}
+          color="rgba(120, 130, 150, 0.14)"
         />
       </ReactFlow>
     </div>
