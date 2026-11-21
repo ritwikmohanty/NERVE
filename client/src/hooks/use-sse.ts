@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { createSSE } from "@/lib/api";
 import type { SSEEvent } from "@/lib/types";
 
+const MAX_EVENTS = 500;
+
 export function useSSE(leadId?: string) {
   const [events, setEvents] = useState<SSEEvent[]>([]);
   const [connected, setConnected] = useState(false);
@@ -19,7 +21,11 @@ export function useSSE(leadId?: string) {
           if (event.type === "connected") {
             setConnected(true);
           }
-          setEvents((prev) => [...prev, event]);
+          // Cap history so long-lived pages don't grow without bound
+          setEvents((prev) => {
+            const next = [...prev, event];
+            return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
+          });
         },
         () => {
           setConnected(false);

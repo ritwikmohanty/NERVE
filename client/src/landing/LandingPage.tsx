@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { Terminal, Database, GitBranch, Cpu, Mail, MessageCircle, Briefcase, Zap, Globe, Shield, Calendar, LayoutGrid } from 'lucide-react';
@@ -1115,6 +1115,16 @@ export default function LandingPage() {
       <CTASection />
 
       <Footer />
+
+      {/* AllHome edition entry point */}
+      <Link
+        to="/login"
+        className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 sm:w-[360px] bg-[#1A1A18] text-[#F5F2E8] rounded-[6px] p-4 shadow-2xl border border-white/10 hover:-translate-y-0.5 transition-transform"
+      >
+        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#FFDA5C]">AllHome Edition</p>
+        <p className="font-heading font-black text-lg leading-tight mt-1">Specifier outreach for 7 AllHome brands</p>
+        <p className="text-xs text-[#F5F2E8]/70 mt-1">Open the live demo — one click, pre-loaded workspace, guided tour →</p>
+      </Link>
     </main>
   );
 }

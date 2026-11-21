@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
+import { ChannelBadge } from "@/components/sending-notice";
 import type { CalendarEvent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
   Volume2,
   ExternalLink,
   RefreshCw,
+  MapPin,
 } from "lucide-react";
 
 /* ─── Helpers ─── */
@@ -55,6 +57,7 @@ function channelIcon(channel: string) {
     case "linkedin_dm": return <Linkedin className="size-3" />;
     case "email": return <Mail className="size-3" />;
     case "whatsapp": return <Phone className="size-3" />;
+    case "visit": return <MapPin className="size-3" />;
     default: return <Send className="size-3" />;
   }
 }
@@ -64,6 +67,7 @@ function channelColor(channel: string) {
     case "linkedin_dm": return "bg-[#0A66C2] text-white";
     case "email": return "bg-[#8B5CF6] text-white";
     case "whatsapp": return "bg-[#25D366] text-white";
+    case "visit": return "bg-[#1A1A18] text-[#FFDA5C]";
     default: return "bg-primary text-white";
   }
 }
@@ -319,7 +323,7 @@ export default function CalendarPage() {
               </Button>
 
               {/* Channel Legend */}
-              <div className="flex items-center gap-1.5 ml-3">
+              <div data-tour="calendar-legend" className="flex items-center gap-1.5 ml-3">
                 {Object.entries(channelBreakdown).map(([ch, count]) => (
                   <span key={ch} className={cn("text-[9px] font-black uppercase px-2 py-0.5 border-2 border-black shadow-[1px_1px_0_0_#000]", channelColor(ch))}>
                     {channelIcon(ch)} {ch.replace(/_/g, " ")} ({count})
@@ -344,7 +348,7 @@ export default function CalendarPage() {
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="flex-1 grid grid-cols-7 grid-rows-6 overflow-hidden">
+            <div data-tour="calendar-grid" className="flex-1 grid grid-cols-7 grid-rows-6 overflow-hidden">
               {calendarCells.map((cell, idx) => {
                 const hasEvents = cell.events.length > 0;
                 const isSelected = selectedDate && isSameDay(cell.date, selectedDate);
@@ -391,7 +395,7 @@ export default function CalendarPage() {
                             channelColor(ev.channel)
                           )}
                         >
-                          {ev.contactName.split(" ")[0]} · T{ev.touchNumber}
+                          {ev.kind === "visit" ? `📍 ${ev.contactName.split(" ")[0]} · ${ev.centreCity}` : `${ev.contactName.split(" ")[0]} · T${ev.touchNumber}`}
                         </div>
                       ))}
                       {cell.events.length > 3 && (
@@ -408,7 +412,7 @@ export default function CalendarPage() {
         </div>
 
         {/* ── Right Panel: Selected Date Details ── */}
-        <div className="w-80 border-l-2 border-black bg-white flex flex-col overflow-hidden shrink-0">
+        <div data-tour="calendar-detail" className="hidden lg:flex w-80 border-l-2 border-black bg-white flex-col overflow-hidden shrink-0">
           <div className="p-4 border-b-2 border-black bg-secondary">
             <h3 className="text-sm font-black uppercase tracking-wider">
               {selectedDate
@@ -461,7 +465,7 @@ export default function CalendarPage() {
                           )}
                         </div>
                         <span className="text-[9px] font-black uppercase border-2 border-black px-1.5 py-0.5 bg-[#FFDA5C] shadow-[1px_1px_0_0_#000] shrink-0">
-                          T{ev.touchNumber}
+                          {ev.kind === "visit" ? "Visit" : `T${ev.touchNumber}`}
                         </span>
                       </div>
 
@@ -469,16 +473,26 @@ export default function CalendarPage() {
                       <div className="grid grid-cols-2 gap-1.5">
                         <div className={cn("flex items-center gap-1 text-[9px] font-bold px-1.5 py-1 border border-black", channelColor(ev.channel))}>
                           {channelIcon(ev.channel)}
-                          {ev.channel.replace(/_/g, " ")}
+                          {ev.kind === "visit" ? `${ev.brandName} centre` : ev.channel.replace(/_/g, " ")}
                         </div>
                         <div className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-1 border border-black bg-white">
                           <Clock className="size-2.5" />
-                          {new Date(ev.scheduledAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(ev.scheduledAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST
                         </div>
-                        <div className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-1 border border-black bg-white">
-                          <Volume2 className="size-2.5" />
-                          {ev.toneFramework.replace(/_/g, " ")}
-                        </div>
+                        {ev.kind === "visit" ? (
+                          <div className="col-span-2 text-[9px] font-bold px-1.5 py-1 border border-black bg-[#CEEBFC]">{ev.address}</div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-1 border border-black bg-white">
+                            <Volume2 className="size-2.5" />
+                            {ev.toneFramework.replace(/_/g, " ")}
+                          </div>
+                        )}
+                        {ev.kind !== "visit" && (
+                          <div className="col-span-2"><ChannelBadge channel={ev.channel} /></div>
+                        )}
+                        {!!ev.focusBrands?.length && (
+                          <div className="col-span-2 text-[9px] font-black px-1.5 py-1 border border-black bg-accent">Pitch: {ev.focusBrands.join(", ")}</div>
+                        )}
                         {ev.tier && (
                           <div className={cn("flex items-center gap-1 text-[9px] font-bold px-1.5 py-1 border border-black", tierColor(ev.tier))}>
                             <Target className="size-2.5" />
@@ -510,6 +524,7 @@ export default function CalendarPage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
+            data-tour="calendar-chat"
             onClick={() => setChatOpen(true)}
             className="fixed bottom-6 right-6 size-14 bg-primary text-white border-3 border-black shadow-[4px_4px_0_0_#000] flex items-center justify-center hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] transition-all z-50"
           >
@@ -535,7 +550,7 @@ export default function CalendarPage() {
                 </div>
                 <div>
                   <h4 className="text-xs font-black uppercase">Schedule Assistant</h4>
-                  <p className="text-[9px] opacity-80 font-bold">AI-Powered · Llama 3.3 70B</p>
+                  <p className="text-[9px] opacity-80 font-bold">AI-Powered · Groq</p>
                 </div>
               </div>
               <button

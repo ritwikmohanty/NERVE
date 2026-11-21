@@ -47,7 +47,6 @@ export function PhaseContainer({
   subtitle,
   icon,
   status,
-  accentColor,
   children,
   integrations,
 }: PhaseContainerProps) {

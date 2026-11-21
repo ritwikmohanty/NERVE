@@ -16,31 +16,39 @@ export function StreamingText({
   onComplete,
   showCursor = true,
 }: StreamingTextProps) {
-  const [displayed, setDisplayed] = useState("");
-  const [done, setDone] = useState(false);
-  const indexRef = useRef(0);
+  // Track progress per text; reset during render when the text changes
+  // (React's recommended alternative to resetting state inside an effect)
+  const [progress, setProgress] = useState({ text, count: 0 });
+  if (progress.text !== text) {
+    setProgress({ text, count: 0 });
+  }
+  const count = progress.text === text ? progress.count : 0;
+  const done = !text || count >= text.length;
+  const displayed = done ? text : text.slice(0, count);
+
+  // Keep the latest callback without restarting the animation when it changes
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
-    indexRef.current = 0;
-    setDisplayed("");
-    setDone(false);
-
     if (!text) return;
-
     const interval = setInterval(() => {
-      indexRef.current += 1;
-      if (indexRef.current >= text.length) {
-        setDisplayed(text);
-        setDone(true);
-        clearInterval(interval);
-        onComplete?.();
-      } else {
-        setDisplayed(text.slice(0, indexRef.current));
-      }
+      setProgress((p) => {
+        if (p.text !== text || p.count >= text.length) {
+          clearInterval(interval);
+          return p;
+        }
+        return { text, count: p.count + 1 };
+      });
     }, speed);
-
     return () => clearInterval(interval);
-  }, [text, speed, onComplete]);
+  }, [text, speed]);
+
+  useEffect(() => {
+    if (text && done) onCompleteRef.current?.();
+  }, [text, done]);
 
   return (
     <span className={className}>

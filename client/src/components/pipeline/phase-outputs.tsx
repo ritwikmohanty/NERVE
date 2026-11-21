@@ -47,7 +47,7 @@ export function OutcomeRow({
     >
       {icon && <span className="mt-0.5 text-black">{icon}</span>}
       <span className="text-[11px] font-black uppercase text-muted-foreground min-w-25 shrink-0">{label}</span>
-      <span className={`text-[12px] font-bold ${accent} ${mono ? "font-mono" : ""} flex-1`}>
+      <span className={`text-[12px] font-bold ${accent} ${mono ? "font-mono break-all" : ""} flex-1 min-w-0`}>
         {value}
       </span>
     </motion.div>
@@ -114,7 +114,6 @@ export function MetricTile({
   value,
   sub,
   icon,
-  accentColor = "primary",
 }: {
   label: string;
   value: string | number;
@@ -236,7 +235,6 @@ export function ScoreBar({
   label,
   value,
   max = 10,
-  color = "emerald",
 }: {
   label: string;
   value: number;

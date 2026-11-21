@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useSSE } from "@/hooks/use-sse";
+import type { SSEEvent } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { FadeIn } from "@/components/ui/motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +10,6 @@ import {
   Zap,
   Globe,
   Radio,
-  Clock,
   CheckCircle2,
   AlertTriangle,
   Send,
@@ -19,15 +19,11 @@ import {
 
 export default function ActivityPage() {
   const { events, connected } = useSSE(); // No ID = global events
-  const [log, setLog] = useState<any[]>([]);
-
-  useEffect(() => {
-    // Keep only the last 100 events
-    if (events.length > 0) {
-      const newEvents = events.filter(e => e.type !== 'connected');
-      setLog(prev => [...newEvents, ...prev].slice(0, 100));
-    }
-  }, [events]);
+  // Newest first, last 100 events (the hook already accumulates the stream)
+  const log = useMemo(
+    () => events.filter((e) => e.type !== "connected").slice(-100).reverse(),
+    [events]
+  );
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -37,7 +33,7 @@ export default function ActivityPage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-4xl font-black tracking-tight uppercase">System Activity</h1>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-none font-bold uppercase tracking-wider text-xs border-2 border-black shadow-[2px_2px_0_0_#000] transition-colors ${connected
+                <div data-tour="activity-status" className={`flex items-center gap-2 px-3 py-1.5 rounded-none font-bold uppercase tracking-wider text-xs border-2 border-black shadow-[2px_2px_0_0_#000] transition-colors ${connected
                     ? "bg-[#599D77] text-white"
                     : "bg-destructive text-white"
                   }`}>
@@ -52,7 +48,7 @@ export default function ActivityPage() {
           </div>
         </FadeIn>
 
-        <Card className="flex-1 min-h-0 border-2 border-black shadow-[4px_4px_0_0_#000] bg-white overflow-hidden flex flex-col rounded-md mt-6">
+        <Card data-tour="activity-feed" className="flex-1 min-h-0 border-2 border-black shadow-[4px_4px_0_0_#000] bg-white overflow-hidden flex flex-col rounded-md mt-6">
           <CardContent className="p-0 flex-1 flex flex-col min-h-0">
             <div className="px-4 py-3 border-b-2 border-black bg-secondary flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
@@ -75,9 +71,9 @@ export default function ActivityPage() {
                       <p className="text-sm font-bold uppercase tracking-wider text-black">Waiting for system signals…</p>
                     </div>
                   ) : (
-                    log.map((event, i) => (
+                    log.map((event) => (
                       <motion.div
-                        key={`${event.timestamp}-${i}`}
+                        key={`${event.timestamp}-${event.type}-${event.leadId}-${String((event.data as Record<string, unknown>)?.agentNumber ?? "")}-${String((event.data as Record<string, unknown>)?.status ?? "")}-${String((event.data as Record<string, unknown>)?.touchNumber ?? "")}`}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="flex items-start gap-4 p-4 rounded-md border-2 border-black shadow-[2px_2px_0_0_#000] bg-white transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[0px_0px_0_0_#000] group mb-3"
@@ -88,7 +84,7 @@ export default function ActivityPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-black text-black uppercase tracking-wider bg-primary text-white border-2 border-black px-2 py-0.5 shadow-[2px_2px_0_0_#000]">
-                              {event.type.replace('_', ' ')}
+                              {event.type.replace(/_/g, ' ')}
                             </span>
                             <span className="text-[10px] font-bold font-mono text-black border-2 border-black px-1 py-0.5 bg-muted">
                               {new Date(event.timestamp).toLocaleTimeString()}
@@ -133,21 +129,40 @@ function getEventIcon(type: string) {
   }
 }
 
-function getEventLabel(event: any) {
-  if (event.type === 'agent_status') {
-    return `Agent ${event.data.agentNumber} (${event.data.agentName}) is now ${event.data.status}. ${event.data.outputSummary || ''}`;
+function getEventLabel(event: SSEEvent): string {
+  const d = (event.data || {}) as Record<string, unknown>;
+  const str = (v: unknown, fb = "") => (v == null ? fb : String(v));
+  switch (event.type) {
+    case "agent_status":
+      return `Agent ${str(d.agentNumber)} (${str(d.agentName)}) is now ${str(d.status)}. ${str(d.outputSummary)}${d.error ? ` — ${str(d.error)}` : ""}`;
+    case "delivery_update":
+      return `Touch ${str(d.touchNumber, "?")} via ${str(d.channel).replace(/_/g, " ")} — ${str(d.status)}`;
+    case "pipeline_complete":
+      return d.leadsProcessed != null
+        ? `Discovery batch complete — ${str(d.leadsProcessed)} leads processed`
+        : `Mission complete. Status: ${str(d.status)}. Outcome: ${str(d.action, "n/a").replace(/_/g, " ")}`;
+    case "branch_decision":
+      return `Decision made: ${str(d.action).replace(/_/g, " ")} — ${str(d.message)}`;
+    case "error":
+      return `Error alert: ${str(d.error, "unknown error")}`;
+    case "score_update":
+      if (d.compositeScore != null) return `Intent score ${str(d.compositeScore)}/100 (${str(d.tier)})`;
+      if (d.persona) return `Persona classified: ${str((d.persona as Record<string, unknown>).archetypeLabel)}`;
+      if (Array.isArray(d.leads)) return `Enriched ${d.leads.length} lead(s): ${d.leads.map((l) => str((l as Record<string, unknown>).company)).join(", ")}`;
+      return "Score update";
+    case "signal_update":
+      return `${Array.isArray(d.signals) ? d.signals.length : 0} signals found — overall ${str(d.overallSignalStrength)}`;
+    case "strategy_update":
+      return `Strategy: ${str(d.primaryChannel).replace(/_/g, " ")} · ${str(d.toneFramework).replace(/_/g, " ")}`;
+    case "content_update":
+      return `${Array.isArray(d.touches) ? d.touches.length : 0} outreach messages generated`;
+    case "rationale_update":
+      return str(d.summary, "Decision rationale generated");
+    case "response_update":
+      return `Response classified: ${str(d.sentiment).replace(/_/g, " ")} → ${str(d.action).replace(/_/g, " ")}`;
+    case "learning_update":
+      return `Learning loop: ${Array.isArray(d.weightUpdates) ? d.weightUpdates.length : 0} scoring weights updated`;
+    default:
+      return typeof event.data === "string" ? event.data : JSON.stringify(event.data).slice(0, 200);
   }
-  if (event.type === 'delivery_update') {
-    return `Message delivered via ${event.data.channel.replace('_', ' ')} (${event.data.status})`;
-  }
-  if (event.type === 'pipeline_complete') {
-    return `Mission complete. Status: ${event.data.status}. Outcome: ${event.data.action || 'n/a'}`;
-  }
-  if (event.type === 'branch_decision') {
-    return `Decision made: ${event.data.action.replace('_', ' ')} — ${event.data.message}`;
-  }
-  if (event.type === 'error') {
-    return `Error alert: ${event.data.error}`;
-  }
-  return typeof event.data === 'string' ? event.data : JSON.stringify(event.data);
 }

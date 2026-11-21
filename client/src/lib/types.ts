@@ -6,7 +6,22 @@ export type ResponseSentiment = "positive" | "neutral" | "negative" | "no_reply"
 export type ToneFramework = "insight_led" | "peer_problem" | "challenger" | "relationship_first" | "growth_urgency";
 export type IntentTier = "HOT" | "WARM" | "COOL" | "COLD";
 export type SignalStrength = "HIGH" | "MEDIUM" | "LOW";
-export type PersonaArchetype = "strategic_executive" | "practitioner" | "innovator" | "networker";
+export type PersonaArchetype = "design_architect" | "aesthetic_designer" | "developer_buyer" | "execution_contractor" | "premium_homeowner";
+export type Segment = "architect" | "id_firm" | "developer" | "contractor" | "homeowner";
+export type ProjectType = "villa" | "premium_apartment" | "apartment_tower" | "hospitality" | "office" | "retail";
+export type ProjectStage = "design" | "structure" | "mep" | "fitout" | "finishing" | "handover";
+export type BudgetTier = "value" | "premium" | "luxury";
+export type ResponseAction = "escalate_human" | "book_visit" | "continue_cadence" | "cancel_sequence" | "nurture";
+
+export interface ProjectContextInput {
+  segment?: Segment;
+  projectType?: ProjectType;
+  projectStage?: ProjectStage;
+  projectName?: string;
+  projectCity?: string;
+  projectValue?: string;
+  budgetTier?: BudgetTier;
+}
 
 export interface Lead {
   id: string;
@@ -29,6 +44,43 @@ export interface Lead {
   rawInput?: string;
   enrichedAt?: string;
   createdAt?: string;
+  // AllHome project context
+  segment?: Segment;
+  projectType?: ProjectType;
+  projectStage?: ProjectStage;
+  projectName?: string;
+  projectCity?: string;
+  projectValue?: string;
+  budgetTier?: BudgetTier;
+  firmType?: string;
+  portfolio?: string[];
+  projectsPerYear?: number;
+  specialties?: string[];
+  origin?: string;
+  error?: string;
+  dataSource?: "live" | "simulated";
+  research?: FirmResearch;
+  contactUnknown?: boolean;
+  projectAssumed?: boolean;
+}
+
+export interface FirmResearch {
+  status: "found" | "partial" | "not_found" | "unavailable";
+  query: string;
+  website?: string;
+  domain?: string;
+  summary?: string;
+  city?: string;
+  specialties: string[];
+  notableProjects: string[];
+  principals: Array<{ name: string; title?: string }>;
+  teamSize?: string;
+  founded?: string;
+  signals: Array<{ title: string; category: string; url?: string; date?: string; detail?: string }>;
+  sources: Array<{ title: string; url: string }>;
+  apollo: { status: "ok" | "unavailable" | "skipped"; note?: string; employees?: number; industry?: string };
+  providers: string[];
+  researchedAt: string;
 }
 
 export interface Signal {
@@ -115,6 +167,7 @@ export interface TouchContent {
   subject?: string;
   body: string;
   preview: string;
+  groundedIn?: string[];
 }
 
 export interface GeneratedContent {
@@ -178,7 +231,7 @@ export interface ResponseEvent {
   sentiment: ResponseSentiment;
   classificationReasoning: string;
   receivedAt: string;
-  action: "escalate_human" | "continue_cadence" | "cancel_sequence" | "nurture";
+  action: ResponseAction;
 }
 
 export interface WeightUpdate {
@@ -217,6 +270,8 @@ export interface LeadDetail {
   agentOutputs: Record<string, unknown>;
   deliveries: DeliveryResult[];
   responses: ResponseEvent[];
+  visits: Visit[];
+  crmSync: CrmSync | null;
 }
 
 export interface SSEEvent {
@@ -242,19 +297,214 @@ export interface HealthCheck {
 // ─── Calendar ───
 export interface CalendarEvent {
   id: string;
+  kind: "touch" | "visit";
+  focusBrands?: string[];
+  purpose?: string;
+  centreCity?: string;
+  brandName?: string;
+  address?: string;
+  status?: string;
   leadId: string;
   companyName: string;
   contactName: string;
   contactTitle: string;
-  channel: OutreachChannel;
+  channel: OutreachChannel | "visit";
   touchNumber: number;
   scheduledAt: string;
   dayOffset: number;
-  toneFramework: ToneFramework;
+  toneFramework: ToneFramework | "";
   timezone: string;
-  primaryChannel: OutreachChannel;
+  primaryChannel: OutreachChannel | "visit";
   sentiment?: string;
   action?: string;
   tier?: string;
   compositeScore?: number;
+}
+
+// ─── Auth / workspace ───
+export interface OrgSettings {
+  brands: string[];
+  segments: Segment[];
+  cities: string[];
+  onboarded: boolean;
+  senderName: string;
+  senderTitle: string;
+}
+
+export interface SessionInfo {
+  user: { id: string; email: string; name: string; role: "owner" | "member" | "demo" };
+  org: { id: string; name: string; isDemo: boolean; settings: OrgSettings };
+}
+
+// ─── AllHome catalog ───
+export interface Brand {
+  id: string;
+  name: string;
+  formalName?: string;
+  services: string[];
+  facts: string[];
+  partners: string[];
+  founders: string;
+  pitch: string;
+  externalSite?: string;
+  category: string;
+  tagline: string;
+  description: string;
+  productLines: string[];
+  specifyAt: ProjectStage[];
+  leadTimeWeeks: number;
+  projectTypes: ProjectType[];
+  segments: Segment[];
+  color: string;
+  website: string;
+  enabled?: boolean;
+}
+
+export interface ExperienceCentre {
+  id: string;
+  brandId: string;
+  brandName?: string;
+  city: string;
+  address: string;
+  mapUrl: string;
+  kind: "experience_centre" | "dealer";
+}
+
+export interface CentreWithStats extends ExperienceCentre {
+  invited: number;
+  visits: number;
+}
+
+export interface Catalog {
+  brands: Brand[];
+  categories: Record<string, string>;
+  centres: ExperienceCentre[];
+  stages: Array<{ id: ProjectStage; label: string; startWeek: number; description: string }>;
+  segments: Record<Segment, { label: string; market: "B2B" | "B2C"; description: string }>;
+  projectTypes: Record<ProjectType, string>;
+  cities: string[];
+  allhome: {
+    name: string; positioning: string; promise: string; model: string; categories: string[]; facts: string[];
+    founders: string; funding: string; insight: string; painPoints: string[]; hq: string; email: string; website: string;
+  };
+  sources: Record<string, string>;
+}
+
+export interface CentreMatch {
+  centre: ExperienceCentre;
+  brandName: string;
+  distanceKm: number;
+  sameCity: boolean;
+}
+
+export interface BundleItem {
+  brandId: string;
+  brandName: string;
+  category: string;
+  role: "primary" | "next_stage" | "add_on";
+  score: number;
+  productLines: string[];
+  reason: string;
+  centre: CentreMatch | null;
+}
+
+export interface BrandBundle {
+  headline: string;
+  items: BundleItem[];
+  primaryBrands: string[];
+  nextBrand?: { brandId: string; brandName: string; weeksUntil: number };
+  vendorsReplaced: number;
+}
+
+export interface RadarEntry {
+  brandId: string;
+  brandName: string;
+  category: string;
+  status: "now" | "upcoming" | "passed";
+  weeksUntil: number;
+  windowLabel: string;
+  leadTimeWeeks: number;
+  orderBy?: string;
+}
+
+export interface BundlePreview {
+  bundle: BrandBundle;
+  radar: RadarEntry[];
+}
+
+export interface CapturedLead extends ProjectContextInput {
+  companyName?: string;
+  contactName?: string;
+  contactTitle?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  interestedBrands: string[];
+  notes?: string;
+  confidence: number;
+  method: "llm" | "heuristic";
+}
+
+export interface Visit {
+  id?: string;
+  leadId?: string;
+  companyName?: string;
+  contactName?: string;
+  centreId: string;
+  centreCity: string;
+  brandName: string;
+  scheduledAt: string;
+  address?: string;
+  mapUrl?: string;
+  status?: "scheduled" | "completed" | "cancelled" | "no_show";
+}
+
+export interface CrmSync {
+  id: string;
+  provider: string;
+  mode: string;
+  payload: { data: Array<Record<string, unknown>> };
+  response: Record<string, unknown>;
+  pushedAt: string;
+}
+
+export interface AnalyticsData {
+  totals: { leads: number; replied: number; positive: number; visits: number; handedOff: number; replyRate: number };
+  funnel: Array<{ stage: string; count: number }>;
+  bySegment: Array<{ key: string; label: string; count: number; positive: number }>;
+  byCity: Array<{ key: string; label: string; count: number; positive: number }>;
+  byStage: Array<{ key: string; label: string; count: number; positive: number }>;
+  byBrand: Array<{ brandId: string; brandName: string; pitched: number; positive: number }>;
+  bundles: Array<{ segment: string; segmentLabel: string; brands: string[]; brandNames: string[]; total: number; positive: number; rate: number }>;
+  weights: Array<{ dimension: string; weight: number; previousWeight: number; updatedAt: string }>;
+  weightSeries: Array<{ at: string; weights: Record<string, number> }>;
+}
+
+// ─── Delivery-channel readiness ───
+export type ChannelId = "whatsapp" | "email" | "linkedin_dm" | "crm";
+export interface ChannelStatus {
+  channel: ChannelId;
+  label: string;
+  provider: string;
+  providerUrl: string;
+  keyConfigured: boolean;
+  state: "ready" | "needs_setup" | "not_connected";
+  canSendLive: boolean;
+  detail: string;
+  shortAction: string;
+  nextSteps: string[];
+  forAllHome: string;
+}
+export interface ResearchProvider {
+  id: "tavily" | "groq" | "apollo";
+  label: string;
+  use: string;
+  state: "live" | "limited" | "off";
+  detail: string;
+}
+export interface IntegrationsReport {
+  simulationMode: boolean;
+  liveResearch: boolean;
+  checkedAt: string;
+  channels: ChannelStatus[];
+  research: ResearchProvider[];
 }

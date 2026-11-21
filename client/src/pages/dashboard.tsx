@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
-import type { Lead, HealthCheck } from "@/lib/types";
+import type { Lead } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FadeIn, AnimatedCounter, StatusDot } from "@/components/ui/motion";
+import { SendingBanner } from "@/components/sending-notice";
 import {
   Building2,
   User,
@@ -20,33 +21,34 @@ import {
   Cpu,
   CheckCircle2,
   Clock,
-  AlertTriangle,
+  MapPin,
   TrendingUp,
   Send,
   Brain,
 } from "lucide-react";
 
+// Lead statuses set by the server pipeline
 const STATUS_BADGE: Record<string, { color: string; label: string }> = {
-  pipeline_running: { color: "emerald", label: "Running" },
-  pipeline_complete: { color: "emerald", label: "Complete" },
-  enriched: { color: "cyan", label: "Enriched" },
+  processing: { color: "emerald", label: "Running" },
+  completed: { color: "emerald", label: "Complete" },
+  active: { color: "cyan", label: "Escalated to sales" },
+  visit_booked: { color: "cyan", label: "Visit booked" },
+  awaiting_reply: { color: "cyan", label: "Drafted · awaiting reply" },
+  do_not_contact: { color: "red", label: "Do Not Contact" },
   error: { color: "red", label: "Error" },
 };
+const FINISHED_STATUSES = ["completed", "awaiting_reply", "active", "visit_booked", "do_not_contact"];
+const SEGMENT_LABEL: Record<string, string> = { architect: "Architect", id_firm: "Interior Design", developer: "Developer", contractor: "Contractor", homeowner: "Homeowner" };
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [health, setHealth] = useState<HealthCheck | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function fetchAll() {
     setLoading(true);
     try {
-      const [leadsRes, healthRes] = await Promise.all([
-        api.getLeads(),
-        api.health(),
-      ]);
+      const leadsRes = await api.getLeads();
       setLeads(leadsRes.leads || []);
-      setHealth(healthRes as unknown as HealthCheck);
     } catch {
       /* ignore */
     } finally {
@@ -60,26 +62,26 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const running = leads.filter((l) => l.status === "pipeline_running").length;
-  const completed = leads.filter((l) => l.status === "pipeline_complete").length;
-  const errored = leads.filter((l) => l.status === "error").length;
+  const running = leads.filter((l) => l.status === "processing").length;
+  const completed = leads.filter((l) => FINISHED_STATUSES.includes(l.status)).length;
+  const visitsBooked = leads.filter((l) => l.status === "visit_booked").length;
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Header */}
         <FadeIn>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-4xl font-black tracking-tight uppercase">Command Center</h1>
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">Command Center</h1>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black uppercase border-2 border-black bg-secondary text-black shadow-[2px_2px_0_0_#000]">
                   <Cpu className="size-3.5" />
                   10 Agents Online
                 </span>
               </div>
               <p className="font-bold text-muted-foreground text-sm uppercase tracking-wider">
-                Real-time autonomous outreach pipeline monitoring
+                AllHome specifier outreach · 7 brands · {leads.length} missions
               </p>
             </div>
             <div className="flex gap-2">
@@ -103,7 +105,7 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <FadeIn delay={0.1}>
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4" data-tour="stats">
             {/* Total Leads */}
             <Card className="border-2 border-black shadow-[4px_4px_0_0_#000] bg-white rounded-md transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000]">
               <CardContent className="p-4">
@@ -157,13 +159,13 @@ export default function DashboardPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="size-10 rounded-md bg-[#EA435F] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000]">
-                    <AlertTriangle className="size-4 text-white" />
+                    <MapPin className="size-4 text-white" />
                   </div>
                 </div>
                 <p className="text-3xl font-black tracking-tight mt-1">
-                  <AnimatedCounter value={errored} />
+                  <AnimatedCounter value={visitsBooked} />
                 </p>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-1">Errors</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-1">Visits Booked</p>
               </CardContent>
             </Card>
 
@@ -176,12 +178,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <p className="text-3xl font-black tracking-tight mt-1">
-                  <AnimatedCounter value={health?.connectedClients || 0} />
+                  <AnimatedCounter value={leads.filter((l) => ["active", "visit_booked"].includes(l.status)).length} />
                 </p>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-1">Live Streams</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-1">Warm → Sales</p>
               </CardContent>
             </Card>
           </div>
+        </FadeIn>
+
+        <FadeIn delay={0.12}>
+          <SendingBanner compact context="messages" />
         </FadeIn>
 
         {/* Agent Pipeline Mini Visual */}
@@ -197,13 +203,13 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 {[
-                  { n: 1, name: "Ingestion", icon: "📥", c: "bg-white" },
-                  { n: 2, name: "Signal Scout", icon: "🔍", c: "bg-white" },
-                  { n: "3+4", name: "Score + Persona", icon: "⚡", parallel: true, c: "bg-[#CEEBFC]" },
-                  { n: 5, name: "Strategy", icon: "🎯", c: "bg-white" },
+                  { n: 1, name: "Enrich firm + project", icon: "📥", c: "bg-white" },
+                  { n: 2, name: "Project signals", icon: "🔍", c: "bg-white" },
+                  { n: "3+4", name: "Intent + Persona", icon: "⚡", parallel: true, c: "bg-[#CEEBFC]" },
+                  { n: 5, name: "Bundle + Timing", icon: "🧩", c: "bg-white" },
                   { n: "6+7", name: "Content + Explain", icon: "✍️", parallel: true, c: "bg-[#CEEBFC]" },
-                  { n: 8, name: "Delivery", icon: "📤", c: "bg-white" },
-                  { n: 9, name: "Monitor", icon: "👁️", c: "bg-white" },
+                  { n: 8, name: "WhatsApp / Email", icon: "📤", c: "bg-white" },
+                  { n: 9, name: "Reply → Visit", icon: "📍", c: "bg-white" },
                   { n: 10, name: "Learning", icon: "🧠", c: "bg-white" },
                 ].map((agent, i, arr) => (
                   <div key={i} className="flex items-center gap-3 shrink-0">
@@ -231,10 +237,10 @@ export default function DashboardPage() {
 
         {/* Lead List */}
         <FadeIn delay={0.2}>
-          <div className="space-y-3">
+          <div className="space-y-3" data-tour="lead-list">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-foreground">Recent Missions</h2>
+                <h2 className="text-sm font-black uppercase text-foreground">Recent Missions</h2>
                 <Badge variant="secondary" className="text-[10px] font-mono">
                   {leads.length}
                 </Badge>
@@ -301,12 +307,15 @@ export default function DashboardPage() {
                               <div className="flex items-center gap-2 mb-1">
                                 <p className="font-bold text-base truncate uppercase tracking-tight">{lead.companyName}</p>
                                 <Badge className="rounded-none border-2 border-black bg-muted text-black shadow-[2px_2px_0_0_#000] uppercase font-bold text-[10px]">
-                                  {lead.status === "pipeline_running" && <StatusDot status="running" />}
+                                  {lead.status === "processing" && <StatusDot status="running" />}
                                   {statusInfo.label}
                                 </Badge>
-                                {lead.source && (
-                                  <Badge className="rounded-none border-2 border-black bg-primary text-white shadow-[2px_2px_0_0_#000] uppercase font-bold text-[10px]">
-                                    {lead.source}
+                                <Badge className={`rounded-none border-2 border-black uppercase font-bold text-[10px] ${lead.dataSource === "live" ? "bg-[#1A1A18] text-[#CEEBFC]" : "bg-white text-black"}`} title={lead.dataSource === "live" ? "Researched with live data (Tavily + Groq)" : "Fictional sample data"}>
+                                  {lead.dataSource === "live" ? "Live data" : "Sample"}
+                                </Badge>
+                                {lead.segment && (
+                                  <Badge className={`rounded-none border-2 border-black shadow-[2px_2px_0_0_#000] uppercase font-bold text-[10px] ${lead.segment === "homeowner" ? "bg-secondary text-black" : "bg-[#CEEBFC] text-black"}`}>
+                                    {lead.segment === "homeowner" ? "B2C" : "B2B"} · {SEGMENT_LABEL[lead.segment]}
                                   </Badge>
                                 )}
                               </div>
@@ -316,8 +325,9 @@ export default function DashboardPage() {
                                     <User className="size-3" /> {lead.contactName}
                                   </span>
                                 )}
-                                {lead.contactTitle && <span className="uppercase">{lead.contactTitle}</span>}
-                                {lead.industry && <span className="uppercase">· {lead.industry}</span>}
+                                {lead.contactTitle && <span className="uppercase hidden sm:inline">{lead.contactTitle}</span>}
+                                {lead.projectName && <span className="uppercase truncate">· {lead.projectName}</span>}
+                                {lead.projectStage && <span className="uppercase hidden sm:inline">· {lead.projectStage} stage</span>}
                                 {lead.createdAt && (
                                   <span className="ml-auto text-xs font-black uppercase text-black">
                                     {new Date(lead.createdAt).toLocaleDateString()}
