@@ -4,7 +4,9 @@ import type {
 } from "./types";
 
 // Override with VITE_API_URL (e.g. https://nerve-api.onrender.com/api) when not on localhost:3001
-export const API_BASE: string = (import.meta.env.VITE_API_URL || "http://localhost:3001/api").replace(/\/$/, "");
+// Tolerate a VITE_API_URL given without the trailing "/api" (the API is mounted under it).
+const rawApiBase = (import.meta.env.VITE_API_URL || "http://localhost:3001/api").replace(/\/+$/, "");
+export const API_BASE: string = /\/api$/.test(rawApiBase) ? rawApiBase : `${rawApiBase}/api`;
 
 const TOKEN_KEY = "nerve.token";
 
