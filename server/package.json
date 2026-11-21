@@ -1,11 +1,11 @@
 {
   "name": "nerve-server",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "npx tsx src/index.ts",
+    "start": "tsx src/index.ts",
     "db:seed": "tsx src/db/seed.ts",
     "mastra:dev": "npx mastra dev"
   },
@@ -14,15 +14,19 @@
     "@hono/node-server": "^1.13.0",
     "@mastra/core": "^1.24.1",
     "ai": "^6.0.158",
+    "bcryptjs": "^3.0.2",
     "hono": "^4.7.0",
     "mastra": "^1.5.0",
     "mongodb": "^7.1.1",
     "nanoid": "^5.1.0",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
     "typescript": "~5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

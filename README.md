@@ -1,5 +1,41 @@
 # NERVE — Autonomous Outreach Engine
 
+## AllHome Edition
+
+> Prototype built for AllHome. It is not an official AllHome product. The pre-loaded demo prospects are fictional. Missions you launch with a real firm name are researched live, but **nothing is ever sent**.
+
+AllHome sells premium architectural and interior products through 7 brands: Metalia, The Window Factory, Ledlum, House of W, Fiamarc, Shapes and Colour Coats. In this market, architects, interior designers, developers and contractors decide what gets specified. NERVE is an **outbound specifier engine** for that market. For each firm it:
+- researches the firm with live data;
+- works out which AllHome brands fit the project's current construction stage;
+- drafts grounded WhatsApp, email and LinkedIn messages;
+- invites the firm to the nearest experience centre;
+- hands warm leads to Zoho CRM.
+
+**Try it:** open the app → **Continue as AllHome demo** (one click, 8 pre-loaded pipelines, a guide on every page).
+
+### Built for AllHome
+
+| Feature | What it does |
+|---|---|
+| **AllHome Brief** | Holds verified facts for every brand: figures, named product systems, services, international partners and founders, all from allhome.in and the 2026 brochure with source links. Drafts may only quote facts from this page. |
+| **Live firm research** | Uses Tavily to search the web and news, and Groq to turn the results into a structured profile with summary, principals, public projects and dated signals, keeping the sources. It only reads information and never sends anything. Contact details and projects are never invented for real firms. |
+| **Grounded drafting** | Each message opens with one detail that is specific to the recipient and can be checked, ties it to one concrete brand capability, and makes one ask. It shows the facts it was "grounded in". Clichés are banned, invented figures are rejected, and channel length limits are enforced. |
+| **One-Collective Brand Bundler** | Recommends a cross-brand bundle for the project's type, construction stage, segment and budget. |
+| **Specification-Window Radar** | Shows when each brand gets specified on the project. Touch 3 of the cadence is timed to the next brand's window. |
+| **Experience Centre Router** | Picks the nearest AllHome centre, preferring one in the lead's own city. A reply asking to visit books the visit. |
+| **Quick Capture** | Turns a pasted WhatsApp chat or business card into a lead. |
+| **Zoho CRM hand-off and CSV export** | Shows the Zoho Leads API payload for warm leads (simulated) and exports leads as CSV. |
+| **Channel readiness** | Every message shows whether it would really be sent, and what's missing (for example "connect a LinkedIn account in HeyReach"). |
+| **Accounts, workspaces and guides** | Signup and login, onboarding, isolated workspaces, and a guided tour on every page. |
+
+### Data and safety
+- **Research is live, sending is locked.** `LIVE_RESEARCH=true` uses Tavily, Groq and Apollo (where the plan allows) only to *retrieve* information. `SIMULATION_MODE=true` keeps sending permanently off. The keys on the demo are the developer's personal keys, and the UI says so.
+- **Nothing invented for real firms.** There are no simulated news items, no guessed emails or phone numbers, no made-up projects, and no fabricated replies. A real lead waits for a real reply, and the learning loop doesn't learn from a non-event.
+- **The demo seed stays fictional and offline**, and uses reserved `.example` addresses.
+
+Deployment steps are in [DEPLOY.md](DEPLOY.md).
+
+---
 
 ## Problem Statement
 
@@ -104,43 +140,25 @@ cd ../client && npm install
 
 ### 2. Configure environment
 
-Create `server/.env`:
-
-```env
-# LLM — Groq (free, generous limits)
-GROQ_API_KEY=your_key              # https://console.groq.com
-
-# Enrichment & Signals
-APOLLO_API_KEY=your_key            # https://app.apollo.io → Settings → API Keys
-TAVILY_API_KEY=your_key            # https://tavily.com
-
-# Outreach (optional — simulation mode covers these)
-RESEND_API_KEY=your_key            # https://resend.com
-HEYREACH_API_KEY=your_key          # https://heyreach.io
-AISENSY_API_KEY=your_key           # https://aisensy.com
-
-# Database
-MONGO_URI=mongodb://localhost:27017
-MONGO_DB_NAME=nerve
-
-# Set true to mock all external calls (safe for demos)
-SIMULATION_MODE=false
-
-PORT=3001
-CLIENT_URL=http://localhost:3000
+```bash
+cp server/.env.example server/.env   # SIMULATION_MODE=true works with no API keys
 ```
+
+Optionally edit `server/.env` and add real keys. `CLIENT_URL` must be `http://localhost:5173`.
 
 ### 3. Run
 
 ```bash
+# Terminal 0 — MongoDB must be running
+brew services start mongodb-community   # or: mongod
+
 # Terminal 1 — Server (from /server)
-npm start
-# or: npx tsx src/index.ts
+npm start          # or: npx tsx src/index.ts
 
 # Terminal 2 — Client (from /client)
 npm run dev
 
-# Terminal 3 — Mastra Studio (optional, from /HackX root)
+# Terminal 3 — Mastra Studio (optional, from /server)
 npx mastra dev
 ```
 

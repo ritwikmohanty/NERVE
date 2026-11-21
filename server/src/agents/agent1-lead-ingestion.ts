@@ -2,546 +2,449 @@ import { nanoid } from "nanoid";
 import { config } from "../config.js";
 import { leadsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
-import { llmGenerateText } from "../lib/llm.js";
-import type {
-  TargetedInput,
-  DiscoveryInput,
-  EnrichedLead,
-  LeadInput,
-} from "../types/index.js";
+import { llmEnabled } from "../lib/llm.js";
+import { liveResearchEnabled } from "../lib/runtime.js";
+import { researchFirm, discoverRealFirms } from "../research/firm.js";
+import { normalizeCity, PROJECT_TYPES, SEGMENTS, type ProjectStage, type ProjectType, type Segment } from "../allhome/catalog.js";
+import type { TargetedInput, DiscoveryInput, EnrichedLead, LeadInput } from "../types/index.js";
 
 const AGENT_NUMBER = 1;
 const AGENT_NAME = "Lead Ingestion";
 
-// ─── Apollo Enrichment (real or simulated) ───
+// ─── Deterministic helpers ───
 
-interface ApolloEnrichmentResult {
-  companyDomain?: string;
-  companySize?: string;
-  industry?: string;
-  fundingStage?: string;
-  fundingAmount?: string;
-  techStack?: string[];
-  headquarters?: string;
-  contactName: string;
-  contactTitle: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  contactLinkedIn?: string;
-  seniority?: string;
+function hashOf(str: string): number {
+  return Math.abs(str.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0));
+}
+function pick<T>(arr: T[], seed: number, offset = 0): T {
+  return arr[(seed + offset) % arr.length];
+}
+function slug(s: string): string {
+  return s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "").slice(0, 24) || "firm";
 }
 
-async function enrichViaApollo(
-  companyName: string,
-  contactName?: string,
-  contactTitle?: string,
-  location?: string
-): Promise<ApolloEnrichmentResult> {
-  if (config.simulationMode) {
-    return simulateApolloEnrichment(companyName, contactName, contactTitle, location);
-  }
+const FIRST = ["Aarav", "Meera", "Kabir", "Ishita", "Rohan", "Ananya", "Vikram", "Naina", "Arjun", "Tara", "Dev", "Rhea", "Siddhant", "Kavya", "Neel", "Zoya"];
+const LAST = ["Mehta", "Kapoor", "Rao", "Iyer", "Desai", "Malhotra", "Shetty", "Bose", "Khanna", "Pillai", "Joshi", "Sethi", "Nair", "Ahuja", "Reddy", "Bhatt"];
 
-  // Real Apollo API call
-  try {
-    const response = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
-        "X-Api-Key": config.apolloApiKey,
-      },
-      body: JSON.stringify({
-        q_organization_name: companyName,
-        q_person_name: contactName || undefined,
-        per_page: 1,
-      }),
-    });
+const TITLES: Record<Segment, string[]> = {
+  architect: ["Principal Architect", "Founding Partner", "Design Director", "Senior Associate Architect"],
+  id_firm: ["Principal Interior Designer", "Founder & Creative Director", "Design Lead", "Senior Interior Architect"],
+  developer: ["Head of Procurement", "Director — Projects", "VP Design & Development", "Chief Projects Officer"],
+  contractor: ["Managing Director", "Head of Execution", "Project Director", "Procurement Manager"],
+  homeowner: ["Homeowner", "Homeowner", "Homeowner", "Homeowner"],
+};
 
-    if (!response.ok) {
-      console.warn(`Apollo API returned ${response.status}, falling back to simulation`);
-      return simulateApolloEnrichment(companyName, contactName, contactTitle, location);
-    }
+const SPECIALTIES: Record<Segment, string[][]> = {
+  architect: [["Luxury residences", "Facade-led design"], ["Hospitality", "Climate-responsive design"], ["Villas", "Courtyard planning"], ["Mixed-use", "Parametric facades"]],
+  id_firm: [["Luxury apartments", "Bespoke joinery"], ["Boutique hotels", "Lighting design"], ["Villas", "Material-led interiors"], ["Workplaces", "Modular interiors"]],
+  developer: [["Premium residential towers"], ["Branded residences", "Villa communities"], ["Grade-A offices"], ["Luxury low-rise"]],
+  contractor: [["Turnkey interiors"], ["Facade & envelope execution"], ["PMC for premium residential"], ["Hospitality fit-outs"]],
+  homeowner: [["New villa build"], ["Apartment renovation"], ["Weekend home"], ["Penthouse fit-out"]],
+};
 
-    const data = (await response.json()) as {
-      people?: Array<{
-        name?: string;
-        title?: string;
-        email?: string;
-        phone_numbers?: Array<{ sanitized_number?: string }>;
-        linkedin_url?: string;
-        seniority?: string;
-        organization?: {
-          website_url?: string;
-          estimated_num_employees?: number;
-          industry?: string;
-          funding_stage?: string;
-          total_funding?: number;
-          technologies?: string[];
-          city?: string;
-          country?: string;
-        };
-      }>;
-    };
-    const person = data.people?.[0];
-    if (!person) {
-      return simulateApolloEnrichment(companyName, contactName, contactTitle, location);
-    }
+const DEFAULT_PROJECT_TYPE: Record<Segment, ProjectType[]> = {
+  architect: ["villa", "hospitality", "apartment_tower", "office"],
+  id_firm: ["premium_apartment", "villa", "hospitality", "office"],
+  developer: ["apartment_tower", "premium_apartment", "villa", "office"],
+  contractor: ["apartment_tower", "office", "hospitality", "villa"],
+  homeowner: ["villa", "premium_apartment"],
+};
 
-    const org = person.organization;
-    return {
-      companyDomain: org?.website_url,
-      companySize: org?.estimated_num_employees
-        ? categorizeSize(org.estimated_num_employees)
-        : undefined,
-      industry: org?.industry,
-      fundingStage: org?.funding_stage,
-      fundingAmount: org?.total_funding ? `$${(org.total_funding / 1_000_000).toFixed(1)}M` : undefined,
-      techStack: org?.technologies?.slice(0, 10),
-      headquarters: org?.city && org?.country ? `${org.city}, ${org.country}` : undefined,
-      contactName: person.name || contactName || "Unknown",
-      contactTitle: person.title || "Unknown",
-      contactEmail: person.email,
-      contactPhone: person.phone_numbers?.[0]?.sanitized_number,
-      contactLinkedIn: person.linkedin_url,
-      seniority: person.seniority,
-    };
-  } catch (error) {
-    console.warn("Apollo API error, falling back to simulation:", error);
-    return simulateApolloEnrichment(companyName, contactName, contactTitle, location);
-  }
-}
+const STAGE_BY_SEGMENT: Record<Segment, ProjectStage[]> = {
+  architect: ["design", "structure", "design", "mep"],
+  id_firm: ["fitout", "mep", "fitout", "finishing"],
+  developer: ["structure", "design", "mep", "structure"],
+  contractor: ["mep", "fitout", "structure", "fitout"],
+  homeowner: ["structure", "fitout", "finishing", "handover"],
+};
 
-function simulateApolloEnrichment(
-  companyName: string,
-  contactName?: string,
-  contactTitle?: string,
-  location?: string
-): ApolloEnrichmentResult {
-  // Known company database for realistic enrichment
-  const knownCompanies: Record<string, { domain: string; size: string; industry: string; stage: string; amount: string; stack: string[]; hq: string }> = {
-    freshworks: { domain: "freshworks.com", size: "1000+", industry: "B2B SaaS - Customer Engagement", stage: "Public", amount: "IPO ($1B+)", stack: ["Ruby on Rails", "React", "AWS", "Redis", "Kafka", "PostgreSQL"], hq: "Chennai, India" },
-    razorpay: { domain: "razorpay.com", size: "1000+", industry: "FinTech - Payments", stage: "Series F", amount: "$741.5M", stack: ["Go", "Ruby", "React", "AWS", "Kubernetes", "MySQL"], hq: "Bangalore, India" },
-    postman: { domain: "postman.com", size: "501-1000", industry: "DevTools - API Platform", stage: "Series D", amount: "$430M", stack: ["Node.js", "React", "Electron", "AWS", "MongoDB", "TypeScript"], hq: "San Francisco, USA" },
-    zerodha: { domain: "zerodha.com", size: "201-500", industry: "FinTech - Trading Platform", stage: "Bootstrapped", amount: "Self-funded ($0 VC)", stack: ["Go", "PostgreSQL", "Redis", "Python", "Elixir", "Kafka"], hq: "Bangalore, India" },
-    notion: { domain: "notion.so", size: "501-1000", industry: "B2B SaaS - Productivity", stage: "Series C", amount: "$343M", stack: ["React", "Node.js", "PostgreSQL", "AWS", "TypeScript", "Redis"], hq: "San Francisco, USA" },
-    chargebee: { domain: "chargebee.com", size: "501-1000", industry: "B2B SaaS - Subscription Billing", stage: "Series G", amount: "$250M", stack: ["Java", "React", "Python", "AWS", "PostgreSQL", "Elasticsearch"], hq: "Chennai, India" },
-    stripe: { domain: "stripe.com", size: "1000+", industry: "FinTech - Payment Infrastructure", stage: "Series I", amount: "$8.7B", stack: ["Ruby", "Go", "React", "AWS", "Kubernetes", "Scala"], hq: "San Francisco, USA" },
-    shopify: { domain: "shopify.com", size: "1000+", industry: "E-commerce - Commerce Platform", stage: "Public", amount: "IPO", stack: ["Ruby on Rails", "React", "GraphQL", "GCP", "Kubernetes", "Lua"], hq: "Ottawa, Canada" },
-    meesho: { domain: "meesho.com", size: "1000+", industry: "E-commerce - Social Commerce", stage: "Series F", amount: "$570M", stack: ["Java", "React Native", "Kubernetes", "AWS", "Kafka", "Redis"], hq: "Bangalore, India" },
-    hasura: { domain: "hasura.io", size: "51-200", industry: "DevTools - GraphQL & Data Access", stage: "Series C", amount: "$100M", stack: ["Haskell", "React", "TypeScript", "PostgreSQL", "Docker", "Go"], hq: "San Francisco, USA" },
-    unacademy: { domain: "unacademy.com", size: "1000+", industry: "EdTech - Online Learning", stage: "Series H", amount: "$440M", stack: ["Python", "React", "AWS", "Kubernetes", "Redis", "MongoDB"], hq: "Bangalore, India" },
-    innovaccer: { domain: "innovaccer.com", size: "501-1000", industry: "HealthTech - Data Platform", stage: "Series E", amount: "$225M", stack: ["Python", "React", "AWS", "Snowflake", "Kubernetes", "PostgreSQL"], hq: "San Francisco, USA" },
-    contentful: { domain: "contentful.com", size: "201-500", industry: "B2B SaaS - Content Platform", stage: "Series F", amount: "$325M", stack: ["Node.js", "React", "TypeScript", "AWS", "PostgreSQL", "Elasticsearch"], hq: "Berlin, Germany" },
-  };
+const LOCALITIES: Record<string, string[]> = {
+  Mumbai: ["Juhu", "Worli", "Bandra West", "Powai", "Alibaug"],
+  Delhi: ["Vasant Vihar", "Golf Links", "Chhatarpur", "Sainik Farms"],
+  Bengaluru: ["Indiranagar", "Whitefield", "Sadashivnagar", "Devanahalli"],
+  Hyderabad: ["Jubilee Hills", "Banjara Hills", "Kokapet", "Gachibowli"],
+  Pune: ["Koregaon Park", "Baner", "Kalyani Nagar"],
+  Chennai: ["Adyar", "Boat Club", "ECR"],
+  Jaipur: ["C-Scheme", "Jagatpura", "Vaishali Nagar"],
+  Kolkata: ["Ballygunge", "New Town", "Alipore"],
+};
 
-  const normalizedName = companyName.toLowerCase().replace(/\s+/g, "");
-  const known = knownCompanies[normalizedName];
-
-  // Use a deterministic hash for consistent results per company name
-  const hash = companyName.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
-  const deterministicPick = <T>(arr: T[]): T => arr[Math.abs(hash) % arr.length];
-
-  const industries = ["B2B SaaS", "FinTech", "HealthTech", "EdTech", "E-commerce", "DevTools", "AI/ML", "Cybersecurity", "MarTech", "HRTech"];
-  const stages = ["Seed", "Series A", "Series B", "Series C", "Series D", "Growth", "Public"];
-  const amounts: Record<string, string> = {
-    Seed: "$2.5M", "Series A": "$12M", "Series B": "$45M", "Series C": "$120M", "Series D": "$200M", Growth: "$350M", Public: "IPO",
-  };
-
-  // Build tech stacks that are coherent (not random)
-  const stackProfiles = [
-    ["React", "Node.js", "TypeScript", "AWS", "PostgreSQL", "Redis"],
-    ["Vue.js", "Python", "Django", "GCP", "MySQL", "Celery"],
-    ["Angular", "Java", "Spring Boot", "Azure", "MongoDB", "Kafka"],
-    ["React", "Go", "gRPC", "AWS", "DynamoDB", "Kubernetes"],
-    ["Next.js", "TypeScript", "Prisma", "Vercel", "PostgreSQL", "Redis"],
-    ["React", "Python", "FastAPI", "AWS", "Snowflake", "Airflow"],
-  ];
-
-  const stage = known?.stage || deterministicPick(stages);
-  const sizeOptions = ["11-50", "51-200", "201-500", "501-1000", "1000+"];
-
-  // Infer seniority from provided title
-  const inferredSeniority = inferSeniority(contactTitle);
-
-  // Generate a realistic contact name based on company geography
-  const indianFirstNames = ["Rahul", "Priya", "Amit", "Sneha", "Vikram", "Ananya", "Arjun", "Kavitha", "Rohan", "Deepika"];
-  const indianLastNames = ["Sharma", "Patel", "Gupta", "Nair", "Reddy", "Iyer", "Joshi", "Verma", "Bansal", "Srinivasan"];
-  const westernFirstNames = ["James", "Sarah", "Michael", "Emily", "David", "Rachel", "Alex", "Jessica", "Chris", "Amanda"];
-  const westernLastNames = ["Wilson", "Chen", "Martinez", "Kim", "O'Brien", "Anderson", "Thompson", "Lee", "Taylor", "Brown"];
-
-  const hq = known?.hq || location || deterministicPick(["Bangalore, India", "San Francisco, USA", "New York, USA", "London, UK", "Berlin, Germany", "Singapore", "Mumbai, India"]);
-  const isIndian = hq.toLowerCase().includes("india") || hq.toLowerCase().includes("bangalore") || hq.toLowerCase().includes("mumbai") || hq.toLowerCase().includes("chennai");
-
-  const firstNames = isIndian ? indianFirstNames : westernFirstNames;
-  const lastNames = isIndian ? indianLastNames : westernLastNames;
-
-  const generatedContactName = contactName || `${deterministicPick(firstNames)} ${deterministicPick(lastNames)}`;
-  const generatedTitle = contactTitle || deterministicPick(["VP of Engineering", "CTO", "Head of Engineering", "VP of Product", "Director of Engineering", "Head of Platform", "Chief Architect"]);
-  const domain = known?.domain || `${normalizedName}.com`;
-  const emailPrefix = generatedContactName.toLowerCase().replace(/\s+/g, ".");
-
-  return {
-    companyDomain: domain,
-    companySize: known?.size || deterministicPick(sizeOptions),
-    industry: known?.industry || deterministicPick(industries),
-    fundingStage: stage,
-    fundingAmount: known?.amount || amounts[stage] || "$10M",
-    techStack: known?.stack || deterministicPick(stackProfiles),
-    headquarters: hq,
-    contactName: generatedContactName,
-    contactTitle: generatedTitle,
-    contactEmail: `${emailPrefix}@${domain}`,
-    contactPhone: isIndian ? `+91-${9000000000 + Math.abs(hash) % 999999999}` : `+1-${2000000000 + Math.abs(hash) % 799999999}`,
-    contactLinkedIn: `https://linkedin.com/in/${generatedContactName.toLowerCase().replace(/\s+/g, "-")}`,
-    seniority: inferredSeniority || deterministicPick(["C-Level", "VP", "Director", "Manager"]),
-  };
-}
-
-function inferSeniority(title?: string): string | undefined {
-  if (!title) return undefined;
-  const t = title.toLowerCase();
-  if (t.includes("chief") || t.includes("ceo") || t.includes("cto") || t.includes("cfo") || t.includes("coo") || t.includes("co-founder") || t.includes("founder")) return "C-Level";
-  if (t.includes("vp") || t.includes("vice president")) return "VP";
-  if (t.includes("director") || t.includes("head of")) return "Director";
-  if (t.includes("manager") || t.includes("lead")) return "Manager";
+export function inferSegment(title?: string, firmName?: string): Segment | undefined {
+  const t = `${title || ""} ${firmName || ""}`.toLowerCase();
+  if (/homeowner|owner|residence of|\bhome\b|\bvilla\b/.test(t)) return "homeowner";
+  if (/develop|realty|estates|builder|properties|infra/.test(t)) return "developer";
+  if (/contract|pmc|execution|turnkey|projects\b/.test(t)) return "contractor";
+  if (/interior|decor|\bid\b/.test(t)) return "id_firm";
+  if (/architect|atelier|studio/.test(t)) return "architect";
   return undefined;
 }
 
-function categorizeSize(employees: number): string {
-  if (employees <= 10) return "1-10";
-  if (employees <= 50) return "11-50";
-  if (employees <= 200) return "51-200";
-  if (employees <= 500) return "201-500";
-  if (employees <= 1000) return "501-1000";
-  return "1000+";
+function inferSeniority(title?: string): EnrichedLead["seniority"] | undefined {
+  if (!title) return undefined;
+  const t = title.toLowerCase();
+  if (/chief|founder|principal|managing director|owner|partner/.test(t)) return "C-Level";
+  if (/\bvp\b|vice president|director/.test(t)) return "VP";
+  if (/head of|lead/.test(t)) return "Director";
+  if (/manager|associate/.test(t)) return "Manager";
+  return undefined;
 }
 
-// ─── Mode 2: Discovery — LLM recommends companies ───
+// ─── Simulated enrichment (fictional firm profile) ───
 
-// Define the discovery recommendation type
-interface DiscoveryRecommendation {
-  companyName: string;
-  contactName?: string;
+interface Enrichment {
+  companyDomain: string;
+  companySize: string;
+  industry: string;
+  headquarters: string;
+  contactName: string;
   contactTitle: string;
-  contactEmail?: string;
-  reason: string;
-  industry?: string;
-  estimatedSize?: string;
-  headquarters?: string;
+  contactEmail: string;
+  contactPhone: string;
+  contactLinkedIn: string;
+  seniority?: EnrichedLead["seniority"];
+  firmType: string;
+  portfolio: string[];
+  projectsPerYear: number;
+  specialties: string[];
 }
 
-async function discoverCompanies(
-  input: DiscoveryInput
-): Promise<DiscoveryRecommendation[]> {
-  if (config.simulationMode && !config.groqApiKey) {
-    return simulateDiscovery(input);
-  }
-
-  const systemPrompt = `You are an elite B2B sales intelligence analyst with deep knowledge of the global technology and business landscape. Given a product description and target criteria, recommend REAL, SPECIFIC companies that exist today and would be ideal prospects.
-
-For EACH company, provide:
-- "companyName": The real, full legal company name (not generic/made-up names)
-- "contactName": A realistic full name for the ideal decision-maker (first + last name)
-- "contactTitle": Their specific job title (e.g. "VP of Engineering", "Head of Data Platform", not just generic "CTO")
-- "contactEmail": A realistic professional email in the format firstname.lastname@companydomain.com or first@companydomain.com
-- "reason": 2-3 sentences explaining WHY this company needs this product — reference specific known facts about the company (their tech stack, recent news, growth stage, pain points, market position)
-- "industry": The specific sub-industry (e.g. "B2B SaaS - Developer Tools" not just "SaaS")
-- "estimatedSize": Employee count range (e.g. "201-500")
-- "headquarters": City, Country
-
-IMPORTANT RULES:
-1. Return ${input.maxResults || 5} companies, each from a DIFFERENT sub-industry or market segment
-2. Mix company sizes: include at least 1 startup (under 50), 1 mid-market (50-500), and 1 enterprise (500+)
-3. Mix geographies: include companies from at least 2 different countries
-4. Each reason must reference SPECIFIC, KNOWN facts about that company
-5. Do NOT return fictional or placeholder companies
-6. Return ONLY the JSON array, no other text.`;
-
-  const userMessage = `
-Product Name: ${input.productName}
-Product Description: ${input.productDescription}
-Target Industries: ${input.targetIndustries.join(", ")}
-Target Company Size: ${input.targetCompanySize || "Any size — provide a mix of startup, mid-market, and enterprise"}
-Target Geographies: ${input.targetGeographies?.join(", ") || "Global — include companies from India, US, Europe, and Southeast Asia"}
-Ideal Customer Profile: ${input.idealCustomerProfile || "Companies that are actively growing, have recently raised funding or launched new products, and have a technical team that would benefit from this solution"}
-
-Recommend ${input.maxResults || 5} real, specific, currently-operating companies. For each company, identify the most relevant decision-maker by name and title, explain specifically why they would need "${input.productName}", and include their location and industry sub-vertical.`;
-
-  try {
-    const response = await llmGenerateText(systemPrompt, userMessage);
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as Array<{
-        companyName: string;
-        contactName?: string;
-        contactTitle: string;
-        contactEmail?: string;
-        reason: string;
-        industry?: string;
-        estimatedSize?: string;
-        headquarters?: string;
-      }>;
-      return parsed.map((p) => ({
-        companyName: p.companyName,
-        contactName: p.contactName,
-        contactTitle: p.contactTitle,
-        contactEmail: p.contactEmail,
-        reason: p.reason,
-        industry: p.industry,
-        estimatedSize: p.estimatedSize,
-        headquarters: p.headquarters,
-      }));
-    }
-    return simulateDiscovery(input);
-  } catch {
-    return simulateDiscovery(input);
-  }
-}
-
-function simulateDiscovery(
-  input: DiscoveryInput
-): Array<{ companyName: string; contactName?: string; contactTitle: string; contactEmail?: string; reason: string; industry?: string; estimatedSize?: string; headquarters?: string }> {
-  // Build a pool of realistic companies mapped to industries
-  const industryCompanyMap: Record<string, Array<{ companyName: string; contactName: string; contactTitle: string; industry: string; size: string; hq: string; reason: string }>> = {
-    SaaS: [
-      { companyName: "Freshworks", contactName: "Jyoti Bansal", contactTitle: "VP of Engineering", industry: "B2B SaaS - Customer Engagement", size: "1000+", hq: "Chennai, India", reason: "Freshworks is actively expanding their AI-powered CRM suite and recently acquired DevRev. Their 5000+ engineering team needs tools that accelerate product velocity across 13 product lines." },
-      { companyName: "Chargebee", contactName: "Rajaraman Santhanam", contactTitle: "Head of Platform Engineering", industry: "B2B SaaS - Subscription Billing", size: "501-1000", hq: "Chennai, India", reason: "Chargebee is scaling post-Series G ($250M) and migrating to microservices. Their billing platform processes $16B+ in revenue, creating complex infrastructure needs." },
-      { companyName: "Notion", contactName: "Jake Moffatt", contactTitle: "Director of Product Engineering", industry: "B2B SaaS - Productivity", size: "501-1000", hq: "San Francisco, USA", reason: "Notion is rapidly expanding beyond notes into enterprise workflows, databases, and AI. Their 500+ person team is scaling infrastructure to handle 30M+ users." },
-      { companyName: "Contentful", contactName: "Stefan Judis", contactTitle: "VP of Developer Experience", industry: "B2B SaaS - Content Platform", size: "201-500", hq: "Berlin, Germany", reason: "Contentful's headless CMS serves 4000+ enterprise customers. Their move into composable content architecture creates demand for advanced developer tooling." },
-    ],
-    FinTech: [
-      { companyName: "Razorpay", contactName: "Arvind Narayanan", contactTitle: "Head of Platform Architecture", industry: "FinTech - Payments", size: "1000+", hq: "Bangalore, India", reason: "Razorpay processes $90B+ annually and recently launched RazorpayX for business banking. Their engineering team of 800+ needs tools to manage payment reliability at scale." },
-      { companyName: "Stripe", contactName: "Emily Zhang", contactTitle: "Senior Director of Infrastructure", industry: "FinTech - Payment Infrastructure", size: "1000+", hq: "San Francisco, USA", reason: "Stripe powers millions of businesses globally and processes hundreds of billions in payments. Their infrastructure team constantly evaluates tools for developer productivity and reliability." },
-      { companyName: "Zerodha", contactName: "Kailash Nadh", contactTitle: "CTO", industry: "FinTech - Trading Platform", size: "201-500", hq: "Bangalore, India", reason: "Zerodha handles 15M+ daily orders with a lean 50-person engineering team using Go and PostgreSQL. They value developer productivity tools that reduce complexity." },
-      { companyName: "Pine Labs", contactName: "Sanjeev Kumar", contactTitle: "VP of Technology", industry: "FinTech - Merchant Payments", size: "501-1000", hq: "Noida, India", reason: "Pine Labs serves 450K+ merchants and recently merged with Fave. Their tech team is integrating multiple platforms and needs unified development tooling." },
-    ],
-    HealthTech: [
-      { companyName: "Innovaccer", contactName: "Sandeep Gupta", contactTitle: "VP of Engineering", industry: "HealthTech - Data Platform", size: "501-1000", hq: "San Francisco, USA", reason: "Innovaccer's healthcare data platform unifies records for 96M+ lives. Their engineering team is building HIPAA-compliant AI features, requiring robust development infrastructure." },
-      { companyName: "PharmEasy", contactName: "Dharmil Sheth", contactTitle: "Head of Technology", industry: "HealthTech - Digital Pharmacy", size: "1000+", hq: "Mumbai, India", reason: "PharmEasy serves 20M+ customers across India with same-day medicine delivery. Their tech platform handles 500K+ daily orders requiring high-reliability systems." },
-      { companyName: "Tempus AI", contactName: "Ryan Fukushima", contactTitle: "Director of Platform Engineering", industry: "HealthTech - Precision Medicine", size: "1000+", hq: "Chicago, USA", reason: "Tempus processes one of the world's largest clinical and molecular datasets. Their engineering team builds ML pipelines for genomic analysis at massive scale." },
-    ],
-    EdTech: [
-      { companyName: "Unacademy", contactName: "Vivek Sinha", contactTitle: "VP of Engineering", industry: "EdTech - Online Learning", size: "1000+", hq: "Bangalore, India", reason: "Unacademy's live learning platform serves 60M+ learners with real-time video infrastructure. Their engineering team needs tools to manage live-streaming scale and content delivery." },
-      { companyName: "Coursera", contactName: "Shravan Goli", contactTitle: "Director of Engineering", industry: "EdTech - Online Learning Platform", size: "1000+", hq: "Mountain View, USA", reason: "Coursera serves 136M+ learners and 7000+ institutions. Their platform team is investing heavily in AI-powered learning paths and needs scalable infrastructure." },
-    ],
-    DevTools: [
-      { companyName: "Postman", contactName: "Ankit Sobti", contactTitle: "CTO", industry: "DevTools - API Platform", size: "501-1000", hq: "San Francisco, USA", reason: "Postman's API platform is used by 30M+ developers. Their engineering team builds collaboration tools and API testing infrastructure requiring high-quality developer tooling." },
-      { companyName: "Hasura", contactName: "Rajoshi Ghosh", contactTitle: "Head of Product Engineering", industry: "DevTools - GraphQL & Data Access", size: "51-200", hq: "San Francisco, USA", reason: "Hasura powers instant GraphQL APIs for startups and enterprises alike. Their lean but highly technical team values tools that amplify developer productivity." },
-      { companyName: "Zeplin", contactName: "Pelin Kenez", contactTitle: "VP of Engineering", industry: "DevTools - Design-to-Code", size: "51-200", hq: "Istanbul, Turkey", reason: "Zeplin bridges design and development for thousands of product teams. Their engineering team is rebuilding their platform with modern architecture." },
-    ],
-    "E-commerce": [
-      { companyName: "Meesho", contactName: "Sanjeev Barnwal", contactTitle: "CTO & Co-founder", industry: "E-commerce - Social Commerce", size: "1000+", hq: "Bangalore, India", reason: "Meesho serves 150M+ monthly transacting users in India's tier-2/3 cities. Their platform handles millions of daily transactions requiring robust backend infrastructure." },
-      { companyName: "Shopify", contactName: "Allan Leinwand", contactTitle: "VP of Infrastructure Engineering", industry: "E-commerce - Commerce Platform", size: "1000+", hq: "Ottawa, Canada", reason: "Shopify powers 4.6M+ merchants globally. Their engineering team constantly evaluates tools to improve developer productivity across their massive monorepo and distributed systems." },
-    ],
-    "AI/ML": [
-      { companyName: "Hugging Face", contactName: "Julien Chaumond", contactTitle: "CTO & Co-founder", industry: "AI/ML - Model Hub", size: "201-500", hq: "New York, USA", reason: "Hugging Face hosts 500K+ models and is the GitHub of ML. Their infrastructure team is scaling to handle petabytes of model weights and billions of API calls." },
-      { companyName: "Weights & Biases", contactName: "Chris Van Pelt", contactTitle: "CTO & Co-founder", industry: "AI/ML - MLOps", size: "201-500", hq: "San Francisco, USA", reason: "W&B is the leading ML experiment tracking platform. Their engineering team builds infrastructure for tracking millions of ML experiments at enterprise scale." },
-    ],
+function simulateEnrichment(firmName: string, segment: Segment, city: string, contactName?: string, contactTitle?: string): Enrichment {
+  const h = hashOf(firmName + segment);
+  const name = contactName || `${pick(FIRST, h)} ${pick(LAST, h, 5)}`;
+  const title = contactTitle || pick(TITLES[segment], h, 2);
+  const domainBase = slug(firmName);
+  const sizes: Record<Segment, string[]> = {
+    architect: ["11-50", "11-50", "51-200"],
+    id_firm: ["1-10", "11-50", "11-50"],
+    developer: ["201-500", "501-1000", "1000+"],
+    contractor: ["51-200", "201-500", "51-200"],
+    homeowner: ["1-10", "1-10", "1-10"],
   };
+  const localities = LOCALITIES[city] || ["City Centre", "Suburbs"];
+  const portfolio = [0, 1, 2].map(
+    (i) => `${pick(["The", "Casa", "House", "Villa", "One", "Residence"], h, i)} ${pick(["Banyan", "Aranya", "Saanjh", "Meher", "Kesar", "Nimbus", "Vistara", "Orchid"], h, i * 3)}, ${pick(localities, h, i)}`
+  );
 
-  // Match input industries to available pools
-  const matchedCompanies: typeof industryCompanyMap["SaaS"] = [];
-  for (const targetIndustry of input.targetIndustries) {
-    const key = Object.keys(industryCompanyMap).find(
-      (k) => k.toLowerCase().includes(targetIndustry.toLowerCase()) || targetIndustry.toLowerCase().includes(k.toLowerCase())
-    );
-    if (key) {
-      matchedCompanies.push(...industryCompanyMap[key]);
-    }
+  return {
+    companyDomain: segment === "homeowner" ? "" : `${domainBase}.example`,
+    companySize: pick(sizes[segment], h),
+    industry: segment === "homeowner" ? "Premium Homeowner" : `${SEGMENTS[segment].label} — Premium`,
+    headquarters: `${pick(localities, h, 1)}, ${city}`,
+    contactName: name,
+    contactTitle: title,
+    // `.example` is a reserved TLD — simulated contacts can never receive real mail
+    contactEmail: `${name.toLowerCase().split(" ")[0]}@${segment === "homeowner" ? "home" : domainBase}.example`,
+    contactPhone: `+91-98${String(10000000 + (h % 89999999)).slice(0, 8)}`,
+    contactLinkedIn: segment === "homeowner" ? "" : `https://linkedin.com/in/${slug(name)}-sample`,
+    seniority: segment === "homeowner" ? undefined : inferSeniority(title),
+    firmType: SEGMENTS[segment].label,
+    portfolio: segment === "homeowner" ? [] : portfolio,
+    projectsPerYear: segment === "developer" ? 3 + (h % 5) : segment === "homeowner" ? 1 : 8 + (h % 20),
+    specialties: pick(SPECIALTIES[segment], h),
+  };
+}
+
+function defaultProject(firmName: string, segment: Segment, city: string, input: Partial<TargetedInput>) {
+  const h = hashOf(firmName + "project");
+  const projectType: ProjectType = input.projectType || pick(DEFAULT_PROJECT_TYPE[segment], h);
+  const projectStage: ProjectStage = input.projectStage || pick(STAGE_BY_SEGMENT[segment], h, 1);
+  const localities = LOCALITIES[city] || ["City Centre"];
+  const values: Record<ProjectType, string[]> = {
+    villa: ["₹6 Cr", "₹9 Cr", "₹14 Cr"],
+    premium_apartment: ["₹3.5 Cr", "₹5 Cr", "₹8 Cr"],
+    apartment_tower: ["₹180 Cr", "₹320 Cr", "₹450 Cr"],
+    hospitality: ["₹60 Cr", "₹110 Cr", "₹200 Cr"],
+    office: ["₹40 Cr", "₹75 Cr", "₹120 Cr"],
+    retail: ["₹8 Cr", "₹15 Cr", "₹25 Cr"],
+  };
+  return {
+    projectType,
+    projectStage,
+    projectName: input.projectName || `${PROJECT_TYPES[projectType]} — ${pick(localities, h)}`,
+    projectCity: city,
+    projectValue: input.projectValue || pick(values[projectType], h),
+    budgetTier: input.budgetTier || (projectType === "villa" || projectType === "hospitality" ? "luxury" : "premium"),
+  } as const;
+}
+
+// ─── Live enrichment (Apollo) — falls back to simulation ───
+
+async function enrichViaApollo(firmName: string, segment: Segment, city: string, contactName?: string, contactTitle?: string): Promise<Enrichment> {
+  const sim = simulateEnrichment(firmName, segment, city, contactName, contactTitle);
+  if (config.simulationMode || !config.apolloApiKey || segment === "homeowner") return sim;
+  try {
+    const response = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-Api-Key": config.apolloApiKey },
+      body: JSON.stringify({ q_organization_name: firmName, q_person_name: contactName || undefined, per_page: 1 }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return sim;
+    const data = (await response.json()) as {
+      people?: Array<{ name?: string; title?: string; email?: string; linkedin_url?: string; organization?: { website_url?: string } }>;
+    };
+    const person = data.people?.[0];
+    if (!person) return sim;
+    return {
+      ...sim,
+      contactName: person.name || sim.contactName,
+      contactTitle: person.title || sim.contactTitle,
+      contactEmail: person.email || sim.contactEmail,
+      contactLinkedIn: person.linkedin_url || sim.contactLinkedIn,
+      companyDomain: person.organization?.website_url || sim.companyDomain,
+      seniority: inferSeniority(person.title) || sim.seniority,
+    };
+  } catch {
+    return sim;
   }
+}
 
-  // If no matches, pull from all industries
-  if (matchedCompanies.length === 0) {
-    for (const companies of Object.values(industryCompanyMap)) {
-      matchedCompanies.push(...companies);
-    }
-  }
+// ─── Discovery: find specifier firms by segment / city ───
 
-  // Shuffle and pick diverse results (different industries)
-  const shuffled = matchedCompanies.sort(() => Math.random() - 0.5);
-  const seen = new Set<string>();
-  const results: typeof matchedCompanies = [];
-  for (const company of shuffled) {
-    if (!seen.has(company.industry) || results.length < (input.maxResults || 5)) {
-      seen.add(company.industry);
-      results.push(company);
-    }
-    if (results.length >= (input.maxResults || 5)) break;
-  }
+/** Clearly fictional sample firms used in simulation (and when no LLM key is set). */
+export const SAMPLE_FIRMS: Array<{ name: string; segment: Segment; city: string }> = [
+  { name: "Studio Kaarva Architects", segment: "architect", city: "Mumbai" },
+  { name: "Monsoon House Architects", segment: "architect", city: "Bengaluru" },
+  { name: "Lumen Row Architects", segment: "architect", city: "Hyderabad" },
+  { name: "Sthapati Collective", segment: "architect", city: "Delhi" },
+  { name: "Atelier Nirvaan", segment: "architect", city: "Jaipur" },
+  { name: "Ochre & Oak Interiors", segment: "id_firm", city: "Mumbai" },
+  { name: "Kosha Design Studio", segment: "id_firm", city: "Delhi" },
+  { name: "Aster Lane Interiors", segment: "id_firm", city: "Bengaluru" },
+  { name: "Indigo Courtyard Designs", segment: "id_firm", city: "Hyderabad" },
+  { name: "Tarang Interiors", segment: "id_firm", city: "Pune" },
+  { name: "Meridian Habitat Developers", segment: "developer", city: "Mumbai" },
+  { name: "Banyan Grove Realty", segment: "developer", city: "Bengaluru" },
+  { name: "Saffron Edge Developers", segment: "developer", city: "Hyderabad" },
+  { name: "Granite Peak Estates", segment: "developer", city: "Delhi" },
+  { name: "Prism Build PMC", segment: "contractor", city: "Mumbai" },
+  { name: "Ironbark Turnkey Contracting", segment: "contractor", city: "Delhi" },
+  { name: "Northlight Projects", segment: "contractor", city: "Chennai" },
+  { name: "The Rao Residence", segment: "homeowner", city: "Hyderabad" },
+  { name: "The Khanna Villa", segment: "homeowner", city: "Delhi" },
+  { name: "The Iyer Home", segment: "homeowner", city: "Chennai" },
+];
 
-  return results.map((c) => ({
-    companyName: c.companyName,
-    contactName: c.contactName,
-    contactTitle: c.contactTitle,
-    contactEmail: `${c.contactName.toLowerCase().replace(/\s+/g, ".")}@${c.companyName.toLowerCase().replace(/\s+/g, "")}.com`,
-    reason: `${c.reason} This aligns with ${input.productName}'s value proposition in ${input.targetIndustries[0] || "technology"}.`,
-    industry: c.industry,
-    estimatedSize: c.size,
-    headquarters: c.hq,
+interface DiscoveryRec {
+  companyName: string;
+  segment: Segment;
+  city: string;
+  reason: string;
+}
+
+function simulateDiscovery(input: DiscoveryInput): DiscoveryRec[] {
+  const max = input.maxResults || 5;
+  const cities = (input.cities || []).map((c) => normalizeCity(c) || c);
+  const bySegment = SAMPLE_FIRMS.filter((f) => !input.segment || f.segment === input.segment);
+  const inCity = bySegment.filter((f) => cities.length === 0 || cities.includes(f.city));
+  const pool = [...inCity, ...bySegment.filter((f) => !inCity.includes(f))];
+  return (pool.length ? pool : SAMPLE_FIRMS).slice(0, max).map((f) => ({
+    companyName: f.name,
+    segment: f.segment,
+    city: f.city,
+    reason: `${SEGMENTS[f.segment].label} in ${f.city} with an active premium pipeline — a strong specifier for AllHome brands.`,
   }));
+}
+
+async function discoverFirms(input: DiscoveryInput): Promise<DiscoveryRec[]> {
+  // Without live research we only ever use clearly fictional sample firms.
+  if (!liveResearchEnabled() || !llmEnabled()) return simulateDiscovery(input);
+  const segment = input.segment || "architect";
+  const cities = (input.cities || []).map((c) => normalizeCity(c) || c);
+  // Real firms come only from live search results — never from the model's memory
+  const firms = await discoverRealFirms(segment, cities, input.maxResults || 5);
+  if (firms.length === 0) return simulateDiscovery(input);
+  return firms.map((f) => ({ companyName: f.companyName, segment, city: f.city, reason: `${f.reason} (source: ${f.sourceUrl})` }));
 }
 
 // ─── Deduplication ───
 
-async function checkDuplicate(companyName: string, contactEmail?: string): Promise<boolean> {
-  const existing = await leadsCol().find({ companyName }).toArray();
+const BLOCKING_STATUSES = ["processing", "awaiting_reply", "active", "visit_booked", "do_not_contact"];
 
-  if (existing.length === 0) return false;
-
-  // Check if any active/processing leads exist for this company
-  return existing.some(
-    (l) =>
-      l.status === "processing" ||
-      l.status === "active" ||
-      (contactEmail && l.contactEmail === contactEmail)
-  );
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// ─── Main Agent Function ───
-
-export async function runLeadIngestionAgent(input: LeadInput): Promise<EnrichedLead[]> {
-  const startTime = Date.now();
-  const enrichedLeads: EnrichedLead[] = [];
-
-  sseManager.emitAgentStatus("pipeline", AGENT_NUMBER, AGENT_NAME, "running");
-
-  try {
-    if (input.mode === "targeted") {
-      // Mode 1: Targeted — enrich the specific company
-      const targeted = input as TargetedInput;
-
-      // Check for duplicates
-      const isDuplicate = await checkDuplicate(targeted.companyName, targeted.contactEmail);
-      if (isDuplicate) {
-        sseManager.emit("agent_status", "pipeline", {
-          agentNumber: AGENT_NUMBER,
-          agentName: AGENT_NAME,
-          status: "complete",
-          outputSummary: `Duplicate detected for ${targeted.companyName} — skipping`,
-        });
-        return [];
-      }
-
-      const enrichment = await enrichViaApollo(targeted.companyName, targeted.contactName, targeted.contactTitle, targeted.location);
-      const lead = buildEnrichedLead(enrichment, targeted);
-      enrichedLeads.push(lead);
-    } else {
-      // Mode 2: Discovery — LLM recommends companies, then enrich each
-      const discovery = input as DiscoveryInput;
-
-      sseManager.emit("agent_status", "pipeline", {
-        agentNumber: AGENT_NUMBER,
-        agentName: AGENT_NAME,
-        status: "running",
-        outputSummary: "Discovering ideal target companies...",
-      });
-
-      const recommendations = await discoverCompanies(discovery);
-
-      for (const rec of recommendations) {
-        const isDuplicate = await checkDuplicate(rec.companyName, rec.contactEmail);
-        if (isDuplicate) continue;
-
-        const enrichment = await enrichViaApollo(rec.companyName, rec.contactName, rec.contactTitle, rec.headquarters);
-
-        // Override enrichment with discovery-provided data when available
-        if (rec.contactName) enrichment.contactName = rec.contactName;
-        if (rec.contactEmail) enrichment.contactEmail = rec.contactEmail;
-        if (rec.industry) enrichment.industry = rec.industry;
-        if (rec.estimatedSize) enrichment.companySize = rec.estimatedSize;
-        if (rec.headquarters) enrichment.headquarters = rec.headquarters;
-
-        const lead = buildEnrichedLead(enrichment, {
-          ...discovery,
-          _companyName: rec.companyName,
-          _reason: rec.reason,
-        } as DiscoveryInput & { _companyName: string; _reason: string });
-        enrichedLeads.push(lead);
-      }
-    }
-
-    // Persist all enriched leads to DB
-    for (const lead of enrichedLeads) {
-      await leadsCol().insertOne({
-        _id: lead.id,
-        companyName: lead.companyName,
-        companyDomain: lead.companyDomain,
-        companySize: lead.companySize,
-        industry: lead.industry,
-        fundingStage: lead.fundingStage,
-        fundingAmount: lead.fundingAmount,
-        techStack: JSON.stringify(lead.techStack),
-        headquarters: lead.headquarters,
-        contactName: lead.contactName,
-        contactTitle: lead.contactTitle,
-        contactEmail: lead.contactEmail,
-        contactPhone: lead.contactPhone,
-        contactLinkedIn: lead.contactLinkedIn,
-        seniority: lead.seniority,
-        source: lead.source,
-        status: "processing",
-        rawInput: JSON.stringify(lead.rawInput),
-        enrichedAt: lead.enrichedAt,
-        createdAt: new Date().toISOString(),
-      });
-    }
-
-    const durationMs = Date.now() - startTime;
-    const summary =
-      input.mode === "targeted"
-        ? `Enriched ${enrichedLeads[0]?.companyName || "lead"} — ${enrichedLeads[0]?.contactName}, ${enrichedLeads[0]?.contactTitle}`
-        : `Discovered & enriched ${enrichedLeads.length} target companies`;
-
-    sseManager.emitAgentStatus("pipeline", AGENT_NUMBER, AGENT_NAME, "complete", summary);
-    sseManager.emit("score_update", "pipeline", {
-      agent: AGENT_NAME,
-      leads: enrichedLeads.map((l) => ({
-        id: l.id,
-        company: l.companyName,
-        contact: l.contactName,
-        title: l.contactTitle,
-      })),
-      durationMs,
-    });
-
-    console.log(`✅ Agent 1 complete in ${durationMs}ms — ${summary}`);
-    return enrichedLeads;
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Unknown error";
-    sseManager.emitAgentStatus("pipeline", AGENT_NUMBER, AGENT_NAME, "error", undefined, errMsg);
-    throw error;
-  }
+export async function findDuplicateLead(orgId: string, companyName: string, contactEmail?: string): Promise<{ id: string; status: string } | null> {
+  const or: Record<string, unknown>[] = [{ companyName: { $regex: `^${escapeRegex(companyName.trim())}$`, $options: "i" } }];
+  if (contactEmail) or.push({ contactEmail });
+  const existing = await leadsCol().findOne({ orgId, $or: or, status: { $in: BLOCKING_STATUSES } });
+  return existing ? { id: existing._id, status: String(existing.status) } : null;
 }
 
-// ─── Helper: build enriched lead object ───
+// ─── Build + persist ───
 
-function buildEnrichedLead(
-  enrichment: ApolloEnrichmentResult,
-  input: TargetedInput | (DiscoveryInput & { _companyName?: string; _reason?: string })
-): EnrichedLead {
-  const companyName =
-    input.mode === "targeted"
-      ? (input as TargetedInput).companyName
-      : (input as DiscoveryInput & { _companyName?: string })._companyName || "Unknown";
+const isSampleFirm = (name: string) => SAMPLE_FIRMS.some((f) => f.name.toLowerCase() === name.trim().toLowerCase());
+
+/** Real firm: profile from live research only — never invented contacts, projects or news. */
+async function buildLiveLead(
+  orgId: string,
+  firmName: string,
+  segment: Segment,
+  cityRaw: string | undefined,
+  input: Partial<TargetedInput>,
+  rawInput: LeadInput,
+  source: "targeted" | "discovery"
+): Promise<EnrichedLead> {
+  const hintCity = normalizeCity(input.projectCity) || normalizeCity(cityRaw) || cityRaw || undefined;
+  const research = await researchFirm(firmName, { city: hintCity, segment });
+  const city = hintCity || research.city || "Mumbai";
+  const principal = research.principals[0];
+  const contactName = input.contactName || principal?.name || "";
+  const projectGiven = !!(input.projectType || input.projectStage);
+  const sizeFromApollo = research.apollo.employees
+    ? research.apollo.employees <= 10 ? "1-10" : research.apollo.employees <= 50 ? "11-50" : research.apollo.employees <= 200 ? "51-200" : research.apollo.employees <= 500 ? "201-500" : research.apollo.employees <= 1000 ? "501-1000" : "1000+"
+    : undefined;
+  const fallback = defaultProject(firmName, segment, city, input);
+  // Infer the likely project type from the firm's public work (planning only — flagged as assumed)
+  const publicText = [research.summary, ...research.specialties, ...research.notableProjects].join(" ").toLowerCase();
+  const inferredType: ProjectType | undefined =
+    /hotel|resort|hospitality/.test(publicText) ? "hospitality"
+    : /campus|office|commerz|business park|it park|corporate|workplace/.test(publicText) ? "office"
+    : /mall|retail|showroom/.test(publicText) ? "retail"
+    : /tower|housing|apartment|residential project/.test(publicText) ? "apartment_tower"
+    : /villa|residence|house|bungalow|farmhouse/.test(publicText) ? "villa"
+    : undefined;
 
   return {
     id: nanoid(),
-    companyName,
-    companyDomain: enrichment.companyDomain,
-    companySize: enrichment.companySize,
-    industry: enrichment.industry,
-    fundingStage: enrichment.fundingStage,
-    fundingAmount: enrichment.fundingAmount,
-    techStack: enrichment.techStack,
-    headquarters: enrichment.headquarters,
-    contactName: enrichment.contactName,
-    contactTitle: enrichment.contactTitle,
-    contactEmail: enrichment.contactEmail,
-    contactPhone: enrichment.contactPhone,
-    contactLinkedIn: enrichment.contactLinkedIn,
-    seniority: enrichment.seniority as EnrichedLead["seniority"],
-    source: input.mode,
+    orgId,
+    companyName: firmName,
+    companyDomain: research.domain,
+    companySize: sizeFromApollo || research.teamSize,
+    industry: segment === "homeowner" ? "Premium Homeowner" : `${SEGMENTS[segment].label}`,
+    headquarters: research.city ? `${research.city}` : city,
+    techStack: [],
+    contactName: contactName || `${firmName} team`,
+    // Title only if supplied or stated in sources — never guessed
+    contactTitle: input.contactTitle || (input.contactName ? "" : principal?.title) || "",
+    // Contact details only if the user supplied them — never guessed for real people
+    contactEmail: input.contactEmail,
+    contactPhone: input.contactPhone,
+    contactLinkedIn: input.contactLinkedIn,
+    seniority: inferSeniority(input.contactTitle || principal?.title),
+    firmType: SEGMENTS[segment].label,
+    portfolio: research.notableProjects,
+    projectsPerYear: undefined,
+    specialties: research.specialties,
+    segment,
+    // Project details are only what the user told us; type/stage defaults are for planning and flagged
+    projectType: input.projectType || inferredType || fallback.projectType,
+    projectStage: input.projectStage || fallback.projectStage,
+    projectName: input.projectName,
+    projectCity: city,
+    projectValue: input.projectValue,
+    budgetTier: input.budgetTier || "premium",
+    dataSource: "live",
+    research,
+    contactUnknown: !contactName,
+    projectAssumed: !projectGiven,
+    source,
     enrichedAt: new Date().toISOString(),
-    rawInput: input,
+    rawInput,
   };
+}
+
+async function buildLead(
+  orgId: string,
+  firmName: string,
+  segment: Segment,
+  cityRaw: string | undefined,
+  input: Partial<TargetedInput>,
+  rawInput: LeadInput,
+  source: "targeted" | "discovery"
+): Promise<EnrichedLead> {
+  if (liveResearchEnabled() && !isSampleFirm(firmName)) {
+    return buildLiveLead(orgId, firmName, segment, cityRaw, input, rawInput, source);
+  }
+  const city = normalizeCity(cityRaw) || normalizeCity(input.projectCity) || cityRaw || "Mumbai";
+  const e = await enrichViaApollo(firmName, segment, city, input.contactName, input.contactTitle);
+  const project = defaultProject(firmName, segment, city, input);
+  return {
+    id: nanoid(),
+    orgId,
+    companyName: firmName,
+    companyDomain: e.companyDomain || undefined,
+    companySize: e.companySize,
+    industry: e.industry,
+    headquarters: e.headquarters,
+    techStack: [],
+    contactName: e.contactName,
+    contactTitle: e.contactTitle,
+    contactEmail: input.contactEmail || e.contactEmail,
+    contactPhone: input.contactPhone || e.contactPhone,
+    contactLinkedIn: input.contactLinkedIn || e.contactLinkedIn || undefined,
+    seniority: e.seniority,
+    firmType: e.firmType,
+    portfolio: e.portfolio,
+    projectsPerYear: e.projectsPerYear,
+    specialties: e.specialties,
+    segment,
+    ...project,
+    dataSource: "simulated",
+    source,
+    enrichedAt: new Date().toISOString(),
+    rawInput,
+  };
+}
+
+export async function runLeadIngestionAgent(input: LeadInput, orgId: string): Promise<EnrichedLead[]> {
+  const startTime = Date.now();
+  const channelId = `pipeline:${orgId}`;
+  sseManager.registerLead(channelId, orgId);
+  sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "running");
+
+  try {
+    const leads: EnrichedLead[] = [];
+
+    if (input.mode === "targeted") {
+      const t = input as TargetedInput;
+      if (await findDuplicateLead(orgId, t.companyName, t.contactEmail)) {
+        sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "complete", `Duplicate detected for ${t.companyName} — skipping`);
+        return [];
+      }
+      const segment = t.segment || inferSegment(t.contactTitle, t.companyName) || "architect";
+      leads.push(await buildLead(orgId, t.companyName, segment, t.projectCity || t.location, t, t, "targeted"));
+    } else {
+      const d = input as DiscoveryInput;
+      for (const rec of await discoverFirms(d)) {
+        if (await findDuplicateLead(orgId, rec.companyName)) continue;
+        const lead = await buildLead(orgId, rec.companyName, rec.segment, rec.city, { segment: rec.segment }, d, "discovery");
+        lead.rawInput = { ...d, _reason: rec.reason } as DiscoveryInput;
+        leads.push(lead);
+      }
+    }
+
+    const now = new Date().toISOString();
+    for (const lead of leads) {
+      sseManager.registerLead(lead.id, orgId);
+      const { id, rawInput, ...rest } = lead;
+      await leadsCol().insertOne({
+        _id: id,
+        ...rest,
+        techStack: JSON.stringify(lead.techStack || []),
+        rawInput: JSON.stringify(rawInput),
+        status: "processing",
+        createdAt: now,
+      });
+    }
+
+    const summary =
+      input.mode === "targeted"
+        ? leads[0]
+          ? `${leads[0].dataSource === "live" ? "Researched" : "Enriched"} ${leads[0].companyName} — ${leads[0].contactUnknown ? "no named contact found" : leads[0].contactName}${leads[0].contactTitle ? ` (${leads[0].contactTitle})` : ""}${leads[0].projectName ? ` · ${leads[0].projectName}` : ""}`
+          : "No new leads"
+        : `Discovered & enriched ${leads.length} specifier firms`;
+    sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "complete", summary);
+    sseManager.emit("score_update", channelId, {
+      agent: AGENT_NAME,
+      leads: leads.map((l) => ({ id: l.id, company: l.companyName, contact: l.contactName, title: l.contactTitle })),
+      durationMs: Date.now() - startTime,
+    });
+    console.log(`✅ Agent 1 complete in ${Date.now() - startTime}ms — ${summary}`);
+    return leads;
+  } catch (error) {
+    sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");
+    throw error;
+  }
 }

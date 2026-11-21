@@ -9,6 +9,7 @@ import type {
   LearningResult,
   WeightUpdate,
 } from "../types/index.js";
+import { DIMENSION_LABELS } from "../types/index.js";
 
 const AGENT_NUMBER = 10;
 const AGENT_NAME = "Learning Loop";
@@ -60,7 +61,8 @@ async function calculateWeightUpdates(
   response: ResponseEvent,
   intent: IntentScore,
   strategy: OutreachStrategy,
-  persona: PersonaProfile
+  persona: PersonaProfile,
+  orgId: string
 ): Promise<WeightUpdate[]> {
   const rule = ADJUSTMENT_RULES.find((r) => r.sentiment === response.sentiment);
   if (!rule) return [];
@@ -68,21 +70,13 @@ async function calculateWeightUpdates(
   const updates: WeightUpdate[] = [];
 
   // Get current weights from DB
-  const currentWeights = await scoringWeightsCol().find({}).toArray();
+  const currentWeights = await scoringWeightsCol().find({ orgId }).toArray();
   const weightMap = new Map(currentWeights.map((w) => [w.dimension, w.weight]));
 
   // Map dimension names to DB keys
-  const dimensionKeyMap: Record<string, string> = {
-    "ICP Fit": "icpFit",
-    "Seniority": "seniority",
-    "Geography": "geography",
-    "Industry Relevance": "industryRelevance",
-    "Company Size": "companySize",
-    "Funding Stage": "fundingStage",
-    "Signal Strength": "signalStrength",
-    "LinkedIn Activity": "linkedinActivity",
-    "Engagement History": "engagementHistory",
-  };
+  const dimensionKeyMap: Record<string, string> = Object.fromEntries(
+    Object.entries(DIMENSION_LABELS).map(([key, label]) => [label, key])
+  );
 
   // For each dimension in the intent score
   for (const dim of intent.dimensions) {
@@ -242,12 +236,12 @@ function generateToneRules(
 
 // ─── Apply Weight Updates to DB ───
 
-async function applyWeightUpdates(updates: WeightUpdate[]): Promise<void> {
+async function applyWeightUpdates(updates: WeightUpdate[], orgId: string): Promise<void> {
   const now = new Date().toISOString();
 
   for (const update of updates) {
     await scoringWeightsCol().updateOne(
-      { dimension: update.dimension },
+      { orgId, dimension: update.dimension },
       {
         $set: {
           weight: update.newWeight,
@@ -266,7 +260,9 @@ export async function runLearningLoopAgent(
   response: ResponseEvent,
   intent: IntentScore,
   strategy: OutreachStrategy,
-  persona: PersonaProfile
+  persona: PersonaProfile,
+  orgId: string,
+  segment?: string
 ): Promise<LearningResult> {
   const startTime = Date.now();
 
@@ -274,7 +270,7 @@ export async function runLearningLoopAgent(
 
   try {
     // 1. Calculate weight adjustments
-    const weightUpdates = await calculateWeightUpdates(response, intent, strategy, persona);
+    const weightUpdates = await calculateWeightUpdates(response, intent, strategy, persona, orgId);
 
     // 2. Generate channel heuristic updates
     const heuristicUpdates = generateChannelHeuristics(response, strategy);
@@ -284,7 +280,7 @@ export async function runLearningLoopAgent(
 
     // 4. Apply weight updates to DB
     if (weightUpdates.length > 0) {
-      await applyWeightUpdates(weightUpdates);
+      await applyWeightUpdates(weightUpdates, orgId);
     }
 
     const result: LearningResult = {
@@ -292,13 +288,23 @@ export async function runLearningLoopAgent(
       weightUpdates,
       heuristicUpdates,
       toneRuleUpdates,
+      bundleOutcome: { segment, brands: strategy.bundle?.items.map((i) => i.brandId) || [], sentiment: response.sentiment },
       updatedAt: new Date().toISOString(),
     };
+    if (strategy.bundle && response.sentiment === "positive") {
+      heuristicUpdates.push(`🧩 Bundle "${strategy.bundle.items.map((i) => i.brandName).join(" + ")}" converted for ${segment || "this"} segment — boosting it for similar projects`);
+    }
 
     // 5. Persist learning history
     await learningHistoryCol().insertOne({
       _id: nanoid(),
       leadId: response.leadId,
+      orgId,
+      segment: segment || null,
+      sentiment: response.sentiment,
+      action: response.action,
+      bundleBrands: result.bundleOutcome?.brands || [],
+      weightsAfter: Object.fromEntries(weightUpdates.map((u) => [u.dimension, u.newWeight])),
       weightUpdates: JSON.stringify(weightUpdates),
       heuristicUpdates: JSON.stringify(heuristicUpdates),
       toneRuleUpdates: JSON.stringify(toneRuleUpdates),

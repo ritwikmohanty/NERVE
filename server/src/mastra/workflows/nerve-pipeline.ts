@@ -17,10 +17,11 @@ import {
   runContentForgeAgent,
   runExplainerAgent,
   runDeliveryAgent,
-  runResponseMonitorAgent,
   simulateNoReply,
   runLearningLoopAgent,
 } from "../../agents/index.js";
+import { connectDB, ensureIndexes } from "../../db/index.js";
+import { getDemoWorkspace } from "../../auth/index.js";
 
 // ─── Zod schemas (kept minimal — real validation is inside each agent) ───
 
@@ -50,8 +51,16 @@ const step1_leadIngestion = createStep({
   inputSchema: leadInputSchema,
   outputSchema: z.object({ lead: anyJsonSchema }),
   execute: async ({ inputData }) => {
-    const leads = await runLeadIngestionAgent(inputData as any);
+    // Agents persist to MongoDB — make sure we're connected when running from Mastra Studio
+    await connectDB();
+    await ensureIndexes();
+    // Studio runs go into the shared AllHome demo workspace
+    const { orgId } = await getDemoWorkspace();
+    const leads = await runLeadIngestionAgent(inputData as any, orgId);
     const lead = leads[0]; // take the first enriched lead
+    if (!lead) {
+      throw new Error("No lead to process — duplicate of an in-flight pipeline, or discovery returned nothing");
+    }
     return { lead: lead as any };
   },
 });
@@ -178,6 +187,8 @@ const step10_learningLoop = createStep({
       inputData.intent as any,
       inputData.strategy as any,
       inputData.persona as any,
+      (inputData.lead as any).orgId,
+      (inputData.lead as any).segment,
     );
     return { learning: learning as any };
   },

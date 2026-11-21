@@ -41,12 +41,16 @@ export const config = {
 
   // Mode
   simulationMode: process.env.SIMULATION_MODE === "true",
+  // Allow LLM generation (Groq) while delivery/enrichment stay simulated — safe for public demos
+  llmInSimulation: process.env.LLM_IN_SIMULATION === "true",
+  // Use Tavily / Apollo / Groq to RETRIEVE real information while sending stays simulated
+  liveResearch: process.env.LIVE_RESEARCH === "true",
 
   // MongoDB
   mongoUri: process.env.MONGO_URI || "mongodb://localhost:27017",
   mongoDbName: process.env.MONGO_DB_NAME || "nerve",
 
-  // LLM (Groq — llama-3.3-70b-versatile)
+  // LLM (Groq — model set by GROQ_MODEL, default openai/gpt-oss-120b)
   groqApiKey: process.env.GROQ_API_KEY || "",
 
   // Enrichment & Signals

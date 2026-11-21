@@ -8,8 +8,8 @@ import { Agent } from "@mastra/core/agent";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-// ─── Shared model string (Groq Llama 3.3 70B) ───
-const MODEL = "groq/llama-3.3-70b-versatile" as const;
+// ─── Shared model string (Groq, GROQ_MODEL) ───
+const MODEL = `groq/${process.env.GROQ_MODEL || "openai/gpt-oss-120b"}` as const;
 
 // ═══════ Agent 1: Lead Ingestion & Enrichment ═══════
 export const leadIngestionAgent = new Agent({

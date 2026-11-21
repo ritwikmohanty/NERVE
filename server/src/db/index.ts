@@ -21,7 +21,7 @@ export function getDB(): Db {
 }
 
 // All documents use string _id (nanoid), not ObjectId
-interface StringIdDoc extends Document { _id: string; }
+export interface StringIdDoc extends Document { _id: string; }
 
 // ─── Collection accessors ───
 export function leadsCol()            { return getDB().collection<StringIdDoc>("leads"); }
@@ -36,15 +36,22 @@ export function deliveryLogsCol()     { return getDB().collection<StringIdDoc>("
 export function responseEventsCol()   { return getDB().collection<StringIdDoc>("response_events"); }
 export function learningHistoryCol()  { return getDB().collection<StringIdDoc>("learning_history"); }
 export function campaignsCol()        { return getDB().collection<StringIdDoc>("campaigns"); }
+export function usersCol()            { return getDB().collection<StringIdDoc>("users"); }
+export function orgsCol()             { return getDB().collection<StringIdDoc>("orgs"); }
+export function visitsCol()           { return getDB().collection<StringIdDoc>("visits"); }
+export function crmSyncCol()          { return getDB().collection<StringIdDoc>("crm_sync"); }
 
 // ─── Create indexes for common queries ───
 export async function ensureIndexes(): Promise<void> {
   const db = getDB();
-  await db.collection("leads").createIndex({ companyName: 1 });
+  await db.collection("leads").createIndex({ orgId: 1, createdAt: -1 });
+  await db.collection("leads").createIndex({ orgId: 1, companyName: 1 });
   await db.collection("leads").createIndex({ status: 1 });
   await db.collection("agent_runs").createIndex({ leadId: 1, agentNumber: 1 });
   await db.collection("signals").createIndex({ leadId: 1 });
-  await db.collection("scoring_weights").createIndex({ dimension: 1 }, { unique: true });
+  // Weights are per workspace now — drop the old global unique index if present
+  await db.collection("scoring_weights").dropIndex("dimension_1").catch(() => {});
+  await db.collection("scoring_weights").createIndex({ orgId: 1, dimension: 1 }, { unique: true });
   await db.collection("intent_scores").createIndex({ leadId: 1 });
   await db.collection("persona_profiles").createIndex({ leadId: 1 });
   await db.collection("strategies").createIndex({ leadId: 1 });
@@ -53,5 +60,8 @@ export async function ensureIndexes(): Promise<void> {
   await db.collection("response_events").createIndex({ leadId: 1 });
   await db.collection("learning_history").createIndex({ leadId: 1 });
   await db.collection("campaigns").createIndex({ leadId: 1 });
+  await db.collection("users").createIndex({ email: 1 }, { unique: true });
+  await db.collection("visits").createIndex({ orgId: 1, scheduledAt: 1 });
+  await db.collection("crm_sync").createIndex({ orgId: 1, leadId: 1 });
   console.log("🗂️  MongoDB indexes ensured");
 }

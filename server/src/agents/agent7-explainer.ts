@@ -1,7 +1,9 @@
 import { nanoid } from "nanoid";
 import { agentRunsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
-import { llmGenerateText } from "../lib/llm.js";
+import { llmGenerateText, hasLLMKey, llmEnabled } from "../lib/llm.js";
+import { config } from "../config.js";
+import { SEGMENTS, STAGES, PROJECT_TYPES, stageIndex } from "../allhome/catalog.js";
 import type {
   EnrichedLead,
   SignalBundle,
@@ -25,7 +27,7 @@ async function buildAgentGraph(leadId: string): Promise<AgentGraphData> {
   // Query all agent runs for this lead
   const runs = await agentRunsCol().find({ leadId }).toArray();
 
-  const runMap = new Map(runs.map((r) => [r.agentNumber, r]));
+  const runMap = new Map(runs.map((r) => [r.agentNumber, r])); // later runs overwrite earlier ones
 
   const agentDefs = [
     { num: 1, name: "Lead Ingestion", id: "agent-1" },
@@ -104,59 +106,60 @@ function buildRationale(
   content: GeneratedContent
 ): RationaleItem[] {
   const items: RationaleItem[] = [];
+  const seg = lead.segment ? SEGMENTS[lead.segment].label : "Specifier";
+  const stage = STAGES[stageIndex(lead.projectStage || "design")].label;
 
-  // Agent 1: Lead Ingestion
   items.push({
     agentName: "Lead Ingestion",
-    decision: `Enriched ${lead.companyName} — ${lead.contactName} (${lead.contactTitle})`,
-    explanation: `We pulled comprehensive data on ${lead.companyName} (${lead.companyDomain || "domain unknown"}) and identified ${lead.contactName} as the primary contact.${lead.companySize ? ` The company has ${lead.companySize} employees` : ""}${lead.fundingStage ? `, currently at ${lead.fundingStage} stage${lead.fundingAmount ? ` with ${lead.fundingAmount} raised` : ""}` : ""}${lead.industry ? `, operating in ${lead.industry}` : ""}${lead.headquarters ? `, headquartered in ${lead.headquarters}` : ""}.${lead.techStack?.length ? ` Tech stack includes ${lead.techStack.slice(0, 4).join(", ")}${lead.techStack.length > 4 ? ` and ${lead.techStack.length - 4} more` : ""}.` : ""}${lead.contactEmail ? ` Contact email: ${lead.contactEmail}.` : ""}${lead.seniority ? ` Seniority: ${lead.seniority}.` : ""}`,
+    decision: `${lead.companyName} — ${lead.contactUnknown ? "no named contact yet" : `${lead.contactName}${lead.contactTitle ? ` (${lead.contactTitle})` : ""}`}`,
+    explanation: `${seg} in ${lead.projectCity || "India"}${lead.projectsPerYear ? ` delivering ~${lead.projectsPerYear} projects a year` : ""}${lead.specialties?.length ? `, known for ${lead.specialties.join(" and ").toLowerCase()}` : ""}. ${lead.projectAssumed ? "No project details were provided — the bundle assumes a typical " + (lead.projectType ? PROJECT_TYPES[lead.projectType].toLowerCase() : "premium") + " project at the " + stage.toLowerCase() + " stage." : `Current project: ${lead.projectName || "unnamed"} (${lead.projectType ? PROJECT_TYPES[lead.projectType] : "premium"}${lead.projectValue ? `, ${lead.projectValue}` : ""}) at the ${stage.toLowerCase()} stage.`}${lead.dataSource === "live" ? ` Profile built from live research (${lead.research?.providers.join(", ") || "web"}; ${lead.research?.sources.length || 0} sources)${lead.contactUnknown ? " — no named contact was found publicly, so outreach addresses the studio." : "."}` : " (Fictional demo profile.)"}`,
     confidence: 0.95,
   });
 
-  // Agent 2: Signal Scout
   items.push({
     agentName: "Signal Scout",
-    decision: signals.topSignal
-      ? `Found ${signals.signals.length} signals — strongest: "${signals.topSignal.title}"`
-      : "No strong signals detected",
+    decision: signals.topSignal ? `${signals.signals.length} signals — strongest: "${signals.topSignal.title}"` : "No strong signals",
     explanation: signals.topSignal
-      ? `We scanned web and social sources for recent activity from ${lead.companyName}. The strongest signal is "${signals.topSignal.title}" (${signals.topSignal.strength} strength, ${signals.topSignal.recencyDays} days ago, source: ${signals.topSignal.source}). ${signals.signals.length > 1 ? `Additional signals include: ${signals.signals.slice(1, 3).map(s => `"${s.title}" (${s.category}, ${s.recencyDays}d ago)`).join("; ")}.` : ""} LinkedIn activity score for ${lead.contactName}: ${signals.linkedinActivityScore}/100${signals.linkedinActivityScore > 60 ? " — actively posting and engaging, suggesting high receptiveness to outreach" : signals.linkedinActivityScore > 40 ? " — moderate activity, reasonable time to reach out" : " — low activity, may be less responsive on LinkedIn"}.`
-      : `No significant recent signals found for ${lead.companyName}. This could mean stable operations or limited public presence. LinkedIn activity score for ${lead.contactName} is ${signals.linkedinActivityScore}/100.`,
+      ? `The strongest buying signal is "${signals.topSignal.title}" (${signals.topSignal.category.replace(/_/g, " ")}, ${signals.topSignal.strength}, ${signals.topSignal.recencyDays} days ago, ${signals.topSignal.source}). ${signals.signals.slice(1, 3).map((s) => `"${s.title}"`).join(" and ")} add context.`
+      : "No recent public activity found — outreach leans on project stage instead.",
     confidence: signals.topSignal ? 0.85 : 0.5,
   });
 
-  // Agent 3: Intent Scorer
-  const topDims = intent.dimensions.sort((a, b) => b.weightedScore - a.weightedScore).slice(0, 3);
+  const topDims = [...intent.dimensions].sort((a, b) => b.weightedScore - a.weightedScore).slice(0, 3);
   items.push({
     agentName: "Intent Scorer",
-    decision: `Score: ${intent.compositeScore}/100 — ${intent.tier} lead`,
-    explanation: `Using our 9-dimension weighted scoring model, ${lead.contactName} at ${lead.companyName} scored ${intent.compositeScore}/100, placing them in the ${intent.tier} tier. Top contributing dimensions: ${topDims.map(d => `${d.name} (${d.rawScore}/100 × ${(d.weight * 100).toFixed(0)}% weight = ${d.weightedScore.toFixed(1)} — ${d.reasoning})`).join("; ")}. ${intent.tier === "HOT" ? "This is a high-priority lead — immediate, personalized outreach is recommended." : intent.tier === "WARM" ? "This lead shows solid engagement potential — proactive outreach with a value-first approach is recommended." : intent.tier === "COOL" ? "This lead has moderate potential — a nurture-first approach with educational content is recommended before direct selling." : "This lead currently shows low intent — consider adding to a long-term drip campaign with thought-leadership content."}`,
+    decision: `${intent.compositeScore}/100 — ${intent.tier}`,
+    explanation: `Top drivers: ${topDims.map((d) => `${d.name} ${d.rawScore}/100 (${d.reasoning})`).join("; ")}.`,
     confidence: 0.9,
   });
 
-  // Agent 4: Persona Analyst
   items.push({
     agentName: "Persona Analyst",
-    decision: `${persona.archetypeLabel} archetype (${Math.round(persona.confidence * 100)}% confidence)`,
-    explanation: `We classified ${lead.contactName} as a "${persona.archetypeLabel}" based on their title (${lead.contactTitle}), seniority (${lead.seniority || "unknown"}), and the ${lead.industry || "technology"} industry context. ${persona.reasoning} Key traits: ${persona.traits.join(", ")}. Communication style: ${persona.communicationStyle}. We should use a ${persona.preferredTone} approach and avoid ${persona.avoidInMessaging.join(", ")}.`,
+    decision: `${persona.archetypeLabel} (${Math.round(persona.confidence * 100)}%)`,
+    explanation: `${persona.reasoning} Lead with: ${persona.talkingPoints.slice(0, 2).join("; ")}. Avoid: ${persona.avoidInMessaging.join(", ")}.`,
     confidence: persona.confidence,
   });
 
-  // Agent 5: Strategy Commander
+  if (strategy.bundle) {
+    items.push({
+      agentName: "Brand Bundler",
+      decision: strategy.bundle.headline,
+      explanation: `Why these brands, why now: ${strategy.bundle.items.map((i) => `${i.brandName} (${i.role.replace(/_/g, " ")}) — ${i.reason}`).join(". ")}. One relationship replaces ${strategy.bundle.vendorsReplaced} separate vendors.`,
+      confidence: 0.88,
+    });
+  }
+
   items.push({
     agentName: "Strategy Commander",
-    decision: `Channel: ${strategy.primaryChannel}${strategy.secondaryChannel ? " + " + strategy.secondaryChannel : ""} | Tone: ${strategy.toneFramework} | ${strategy.cadence.length}-touch cadence`,
-    explanation: strategy.decisions
-      .map((d) => `${d.decision}: ${d.reasoning} (Factors: ${d.factors.join("; ")})`)
-      .join(" | ") + `. Cadence: ${strategy.cadence.map(c => `Touch ${c.touchNumber} via ${c.channel} on Day +${c.dayOffset}`).join(", ")}. Timezone: ${strategy.timezone}. First send: ${strategy.sendTimestamp}.`,
+    decision: `${strategy.primaryChannel.replace(/_/g, " ")}${strategy.secondaryChannel ? " → " + strategy.secondaryChannel.replace(/_/g, " ") : ""} · ${strategy.toneFramework.replace(/_/g, " ")} · ${strategy.cadence.length} touches`,
+    explanation: strategy.decisions.map((d) => `${d.decision}: ${d.reasoning}`).join(" | "),
     confidence: 0.85,
   });
 
-  // Agent 6: Content Forge
   items.push({
     agentName: "Content Forge",
-    decision: `Generated ${content.touches.length}-touch cadence${content.linkedinPost ? " + LinkedIn post" : ""}${content.linkedinHeadlineSuggestion ? " + headline suggestion" : ""}`,
-    explanation: `We crafted ${content.touches.length} hyper-personalized messages for ${lead.contactName}: ${content.touches.map((t) => `Touch ${t.touchNumber} via ${t.channel}${t.subject ? ` (Subject: "${t.subject}")` : ""} — ${t.preview}...`).join("; ")}. Each message was tailored to the ${persona.archetypeLabel} persona using the ${strategy.toneFramework.replace(/_/g, " ")} framework, referencing ${lead.companyName}'s ${lead.industry || "industry"} context and ${signals.topSignal ? `their recent signal: "${signals.topSignal.title}"` : "market position"}.${content.linkedinPost ? " A LinkedIn thought-leadership post was also generated to warm up the relationship before direct outreach." : ""}`,
+    decision: `${content.touches.length} personalised messages + spec sheet`,
+    explanation: content.touches.map((t) => `Touch ${t.touchNumber} (${t.channel.replace(/_/g, " ")})${t.subject ? ` "${t.subject}"` : ""}: ${t.preview}…`).join(" · "),
     confidence: 0.8,
   });
 
@@ -171,30 +174,36 @@ async function generateSummary(
   intent: IntentScore,
   strategy: OutreachStrategy
 ): Promise<string> {
-  // In simulation mode, generate summary without LLM call for speed
-  const { config } = await import("../config.js");
-  if (config.simulationMode) {
-    return `We're reaching ${lead.contactName} at ${lead.companyName} via ${strategy.primaryChannel} using a ${strategy.toneFramework.replace(/_/g, " ")} approach. They scored ${intent.compositeScore}/100 (${intent.tier}), making them ${intent.tier === "HOT" ? "a high-priority target for immediate outreach" : intent.tier === "WARM" ? "a solid prospect worth engaging" : "a lead to nurture carefully"}. The ${strategy.cadence.length}-touch cadence will unfold over ${strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7} days.`;
+  const bundleLine = strategy.bundle ? ` We're leading with ${strategy.bundle.items.filter((i) => i.role === "primary").map((i) => i.brandName).join(" + ")}${strategy.bundle.nextBrand ? ` and will pre-specify ${strategy.bundle.nextBrand.brandName} in ~${strategy.bundle.nextBrand.weeksUntil} weeks` : ""}${strategy.experienceCentre ? `, inviting them to the ${strategy.experienceCentre.centre.city} experience centre` : ""}.` : "";
+  const fallbackSummary = `We're reaching ${lead.contactName} at ${lead.companyName} via ${strategy.primaryChannel.replace(/_/g, " ")} using a ${strategy.toneFramework.replace(/_/g, " ")} approach. They scored ${intent.compositeScore}/100 (${intent.tier}), making them ${intent.tier === "HOT" ? "a high-priority target for immediate outreach" : intent.tier === "WARM" ? "a solid prospect worth engaging" : "a lead to nurture carefully"}. The ${strategy.cadence.length}-touch cadence will unfold over ${strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7} days.${bundleLine}`;
+
+  // In simulation mode (or without an LLM key), skip the LLM call
+  if (!llmEnabled()) {
+    return fallbackSummary;
   }
 
   const systemPrompt = `You are a sales strategy advisor explaining AI-driven outreach decisions to a human operator. Write in plain English, 2-3 sentences max. Be specific, not generic.`;
 
-  const userMessage = `Summarize the outreach plan for ${lead.contactName} (${lead.contactTitle} at ${lead.companyName}):
+  const userMessage = `Summarize the outreach plan for ${lead.contactUnknown ? `the ${lead.companyName} team` : `${lead.contactName}${lead.contactTitle ? ` (${lead.contactTitle})` : ""} at ${lead.companyName}`}:
 - Intent: ${intent.tier} (${intent.compositeScore}/100)
 - Channel: ${strategy.primaryChannel}
 - Tone: ${strategy.toneFramework}
+- Brand bundle: ${strategy.bundle?.headline || "n/a"}
+- Experience centre: ${strategy.experienceCentre ? strategy.experienceCentre.centre.city : "n/a"}
 - Touches: ${strategy.cadence.length} over ${strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7} days
+- Project: ${lead.projectAssumed ? "not provided (planning assumes a typical project — do not describe one)" : `${lead.projectName || "unnamed"}, ${lead.projectType || ""} at ${lead.projectStage || ""} stage`}
+- Profile: ${lead.dataSource === "live" ? lead.research?.summary || "live research found little public information" : "fictional demo profile"}
+- Contact details on file: ${[lead.contactEmail && "email", lead.contactPhone && "WhatsApp", lead.contactLinkedIn && "LinkedIn"].filter(Boolean).join(", ") || "none yet"}
 
-Write a 2-3 sentence executive summary of why we're reaching out to this person, through this channel, in this way.`;
+Write a 2-3 sentence executive summary of why we're reaching out, through this channel, in this way. Use only the facts above — never invent project details, gender or personal facts (use the person's name or "they").`;
 
-  const response = await llmGenerateText(systemPrompt, userMessage);
-
-  // Handle simulated/quota responses
-  if (response.startsWith("[SIMULATED]") || response.startsWith("[QUOTA_EXCEEDED]")) {
-    return `We're reaching ${lead.contactName} at ${lead.companyName} via ${strategy.primaryChannel} using a ${strategy.toneFramework.replace(/_/g, " ")} approach. They scored ${intent.compositeScore}/100 (${intent.tier}), making them ${intent.tier === "HOT" ? "a high-priority target for immediate outreach" : intent.tier === "WARM" ? "a solid prospect worth engaging" : "a lead to nurture carefully"}. The ${strategy.cadence.length}-touch cadence will unfold over ${strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7} days.`;
+  try {
+    const response = await llmGenerateText(systemPrompt, userMessage);
+    return response.trim() || fallbackSummary;
+  } catch (err) {
+    console.warn("[Agent 7] LLM summary failed, using fallback:", String(err));
+    return fallbackSummary;
   }
-
-  return response;
 }
 
 // ─── Main Agent Function ───

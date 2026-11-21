@@ -1,16 +1,36 @@
+import type { Segment, ProjectType, ProjectStage } from "../allhome/catalog.js";
+import type { BrandBundle, RadarEntry } from "../allhome/bundler.js";
+import type { CentreMatch } from "../allhome/catalog.js";
+import type { FirmResearch } from "../research/firm.js";
+export type { Segment, ProjectType, ProjectStage };
+
+/** AllHome project context attached to every lead */
+export interface ProjectContext {
+  segment?: Segment;
+  projectType?: ProjectType;
+  projectStage?: ProjectStage;
+  projectName?: string;
+  projectCity?: string;
+  projectValue?: string; // e.g. "₹25 Cr"
+  budgetTier?: "value" | "premium" | "luxury";
+}
+
 // ─── Execution Modes ───
 export type ExecutionMode = "targeted" | "discovery";
 
 // Mode 1: Targeted — user provides a specific company to evaluate
-export interface TargetedInput {
+export interface TargetedInput extends ProjectContext {
   mode: "targeted";
   companyName: string;
   contactName?: string;
   contactTitle?: string;
   contactEmail?: string;
   contactLinkedIn?: string;
+  contactPhone?: string;
   location?: string;
   additionalContext?: string;
+  /** Where the lead came from: manual form, quick capture, discovery */
+  origin?: "form" | "capture" | "discovery" | "seed";
 }
 
 // Mode 2: Discovery — system recommends companies based on user's product
@@ -23,13 +43,16 @@ export interface DiscoveryInput {
   targetGeographies?: string[];
   idealCustomerProfile?: string;
   maxResults?: number;
+  segment?: Segment;
+  cities?: string[];
 }
 
 export type LeadInput = TargetedInput | DiscoveryInput;
 
 // ─── Enriched Lead (output of Agent 1) ───
-export interface EnrichedLead {
+export interface EnrichedLead extends ProjectContext {
   id: string;
+  orgId: string;
   // Company info
   companyName: string;
   companyDomain?: string;
@@ -46,6 +69,18 @@ export interface EnrichedLead {
   contactPhone?: string;
   contactLinkedIn?: string;
   seniority?: "C-Level" | "VP" | "Director" | "Manager" | "Individual Contributor";
+  // Firm profile (architect / ID / developer / contractor)
+  firmType?: string;
+  portfolio?: string[];
+  projectsPerYear?: number;
+  specialties?: string[];
+  /** "live" = researched with real APIs; "simulated" = fictional sample data */
+  dataSource?: "live" | "simulated";
+  research?: FirmResearch;
+  /** No verified contact person found — outreach addresses the firm */
+  contactUnknown?: boolean;
+  /** Project type/stage were not provided — defaults used for planning only */
+  projectAssumed?: boolean;
   // Meta
   source: "targeted" | "discovery";
   enrichedAt: string;
@@ -54,6 +89,11 @@ export interface EnrichedLead {
 
 // ─── Signal (output of Agent 2) ───
 export type SignalCategory =
+  | "project_launch"
+  | "award_publication"
+  | "possession_milestone"
+  | "exhibition"
+  | "office_opening"
   | "funding"
   | "product_launch"
   | "executive_hire"
@@ -108,10 +148,11 @@ export interface IntentScore {
 
 // ─── Persona (output of Agent 4) ───
 export type PersonaArchetype =
-  | "strategic_executive"
-  | "practitioner"
-  | "innovator"
-  | "networker";
+  | "design_architect"
+  | "aesthetic_designer"
+  | "developer_buyer"
+  | "execution_contractor"
+  | "premium_homeowner";
 
 export interface PersonaProfile {
   leadId: string;
@@ -122,6 +163,7 @@ export interface PersonaProfile {
   communicationStyle: string;
   preferredTone: string;
   avoidInMessaging: string[];
+  talkingPoints: string[];
   reasoning: string;
   generatedAt: string;
 }
@@ -141,6 +183,9 @@ export interface TouchPoint {
   scheduledAt: string; // ISO timestamp
   dayOffset: number; // days from Touch 1
   toneFramework: ToneFramework;
+  /** AllHome brands this touch pitches */
+  focusBrands?: string[];
+  purpose?: string;
 }
 
 export interface OutreachStrategy {
@@ -152,6 +197,9 @@ export interface OutreachStrategy {
   toneFramework: ToneFramework;
   cadence: TouchPoint[];
   decisions: StrategyDecision[];
+  bundle?: BrandBundle;
+  radar?: RadarEntry[];
+  experienceCentre?: CentreMatch | null;
   generatedAt: string;
 }
 
@@ -167,6 +215,8 @@ export interface GeneratedContent {
   touches: TouchContent[];
   linkedinPost?: string;
   linkedinHeadlineSuggestion?: string;
+  /** One-page specification sheet for the recommended bundle (markdown) */
+  specSheet?: string;
   generatedAt: string;
 }
 
@@ -176,6 +226,8 @@ export interface TouchContent {
   subject?: string; // email only
   body: string;
   preview: string; // first 100 chars
+  /** Facts the draft is grounded in (shown in the UI) */
+  groundedIn?: string[];
 }
 
 // ─── Rationale (output of Agent 7) ───
@@ -242,8 +294,11 @@ export interface ResponseEvent {
   sentiment: ResponseSentiment;
   classificationReasoning: string;
   receivedAt: string;
-  action: "escalate_human" | "continue_cadence" | "cancel_sequence" | "nurture";
+  action: ResponseAction;
+  visit?: { centreId: string; centreCity: string; brandName: string; scheduledAt: string };
 }
+
+export type ResponseAction = "escalate_human" | "book_visit" | "continue_cadence" | "cancel_sequence" | "nurture";
 
 // ─── Learning Update (output of Agent 10) ───
 export interface WeightUpdate {
@@ -259,6 +314,7 @@ export interface LearningResult {
   weightUpdates: WeightUpdate[];
   heuristicUpdates: string[];
   toneRuleUpdates: string[];
+  bundleOutcome?: { segment?: string; brands: string[]; sentiment: string };
   updatedAt: string;
 }
 
@@ -281,31 +337,46 @@ export type SSEEventType =
 export interface SSEEvent {
   type: SSEEventType;
   leadId: string;
+  orgId?: string;
   data: unknown;
   timestamp: string;
 }
 
 // ─── Scoring Weights (persisted in DB, updated by Agent 10) ───
+// AllHome-tuned intent dimensions
 export interface ScoringWeights {
-  icpFit: number;
-  seniority: number;
-  geography: number;
-  industryRelevance: number;
-  companySize: number;
-  fundingStage: number;
+  specifierInfluence: number;
+  segmentFit: number;
+  projectValue: number;
+  stageFit: number;
+  centreProximity: number;
   signalStrength: number;
-  linkedinActivity: number;
+  portfolioFit: number;
+  contactReachability: number;
   engagementHistory: number;
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  icpFit: 0.15,
-  seniority: 0.12,
-  geography: 0.08,
-  industryRelevance: 0.13,
-  companySize: 0.08,
-  fundingStage: 0.12,
-  signalStrength: 0.15,
-  linkedinActivity: 0.07,
-  engagementHistory: 0.10,
+  specifierInfluence: 0.16,
+  segmentFit: 0.10,
+  projectValue: 0.13,
+  stageFit: 0.16,
+  centreProximity: 0.09,
+  signalStrength: 0.13,
+  portfolioFit: 0.10,
+  contactReachability: 0.06,
+  engagementHistory: 0.07,
+};
+
+/** Display names for the dimensions (Agent 3 output ↔ Agent 10 weight keys) */
+export const DIMENSION_LABELS: Record<keyof ScoringWeights, string> = {
+  specifierInfluence: "Specifier Influence",
+  segmentFit: "Segment Fit",
+  projectValue: "Project Value",
+  stageFit: "Stage Fit",
+  centreProximity: "Centre Proximity",
+  signalStrength: "Signal Strength",
+  portfolioFit: "Portfolio Fit",
+  contactReachability: "Reachability",
+  engagementHistory: "Engagement History",
 };

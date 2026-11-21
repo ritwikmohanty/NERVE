@@ -1,0 +1,42 @@
+# Render blueprint for the NERVE API (AllHome edition).
+# Deploy: Render dashboard → New → Blueprint → pick this repo.
+# Values marked `sync: false` are entered in the Render dashboard (never committed).
+services:
+  - type: web
+    name: nerve-allhome-api
+    runtime: node
+    rootDir: server
+    plan: free
+    region: singapore
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SIMULATION_MODE
+        value: "true" # the public demo never sends real messages
+      - key: LLM_IN_SIMULATION
+        value: "true" # still use Groq to write messages (falls back to templates if unset/rate-limited)
+      - key: LIVE_RESEARCH
+        value: "true" # Tavily/Groq/Apollo used to RETRIEVE info about real firms (read-only)
+      - key: DEMO_RESET_ON_BOOT
+        value: "true" # every restart re-seeds a clean shared demo workspace
+      - key: ALLOW_LIVE_TOGGLE
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false # MongoDB Atlas connection string
+      - key: MONGO_DB_NAME
+        value: nerve
+      - key: CLIENT_URL
+        sync: false # e.g. https://nerve-allhome.vercel.app
+      - key: VERCEL_PROJECT_SLUG
+        sync: false # e.g. nerve-allhome (allows preview deployments)
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false

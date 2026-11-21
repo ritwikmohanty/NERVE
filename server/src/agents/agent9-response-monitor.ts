@@ -1,8 +1,11 @@
 import { nanoid } from "nanoid";
-import { responseEventsCol, leadsCol } from "../db/index.js";
+import { responseEventsCol, leadsCol, visitsCol, strategiesCol } from "../db/index.js";
+import { bestCentreForBrands, getBrand } from "../allhome/catalog.js";
 import { sseManager } from "../lib/sse.js";
-import { llmGenerateText } from "../lib/llm.js";
+import { llmGenerateText, hasLLMKey, llmEnabled } from "../lib/llm.js";
+import { config } from "../config.js";
 import type {
+  ResponseAction,
   ResponseEvent,
   ResponseSentiment,
   OutreachChannel,
@@ -22,6 +25,7 @@ const SENTIMENT_SYSTEM_PROMPT = `You are an NLP sentiment classifier for B2B sal
 - "no_reply": Use this only when explicitly told there was no response
 
 Also determine the recommended next action:
+- "book_visit": Positive AND they want to see samples / visit a showroom or experience centre
 - "escalate_human": For positive responses — hand off to a human sales rep
 - "continue_cadence": For neutral responses — proceed with next touch
 - "cancel_sequence": For negative responses — stop all outreach, mark as do-not-contact
@@ -31,7 +35,7 @@ Return as JSON:
 {
   "sentiment": "positive" | "neutral" | "negative" | "no_reply",
   "reasoning": "one sentence explaining the classification",
-  "action": "escalate_human" | "continue_cadence" | "cancel_sequence" | "nurture"
+  "action": "book_visit" | "escalate_human" | "continue_cadence" | "cancel_sequence" | "nurture"
 }
 
 Return ONLY the JSON.`;
@@ -49,7 +53,20 @@ async function classifySentimentLLM(
         reasoning: string;
         action: ResponseEvent["action"];
       };
-      return parsed;
+      const actionFor: Record<ResponseSentiment, ResponseEvent["action"]> = {
+        positive: "escalate_human",
+        neutral: "continue_cadence",
+        negative: "cancel_sequence",
+        no_reply: "nurture",
+      };
+      if (parsed.sentiment in actionFor) {
+        return {
+          sentiment: parsed.sentiment,
+          reasoning: parsed.reasoning || "Classified by LLM",
+          // Keep sentiment and action consistent even if the model mixes them up
+          action: parsed.sentiment === "positive" && (parsed.action === "book_visit" || VISIT_RE.test(messageBody)) ? "book_visit" : actionFor[parsed.sentiment],
+        };
+      }
     }
   } catch {
     // Fall through to keyword classifier
@@ -59,6 +76,9 @@ async function classifySentimentLLM(
 }
 
 // ─── Keyword-Based Fallback Classifier ───
+
+/** Wants to see / touch the product → book an experience-centre visit */
+const VISIT_RE = /(visit|experience cent(re|er)|showroom|come (by|over|down)|drop by|see (the )?(samples|finishes|products|options)|walkthrough|walk-through|in person)/i;
 
 function classifySentimentKeywords(
   messageBody: string
@@ -77,6 +97,10 @@ function classifySentimentKeywords(
     /not (?:a )?good (?:fit|time)/i,
     /f[*u]ck off/i,
     /leave me alone/i,
+    /not (?:a )?priority/i,
+    /(?:we're|we are) all set/i,
+    /not looking/i,
+    /no longer/i,
   ];
 
   for (const pattern of negativePatterns) {
@@ -94,13 +118,22 @@ function classifySentimentKeywords(
     /(?:yes|sure|sounds good|interested|love to|happy to|let's)/i,
     /(?:book|schedule|meeting|call|chat|demo|15.?min)/i,
     /(?:tell me more|learn more|send.+(?:info|details|deck))/i,
-    /(?:great|awesome|perfect|wonderful|fantastic)/i,
+    /(?:great|awesome|perfect|wonderful|fantastic|lovely|nice)/i,
+    /(?:samples?|visit|showroom|experience cent)/i,
     /(?:when.*available|free.*(?:this|next) week)/i,
   ];
 
   let positiveCount = 0;
   for (const pattern of positivePatterns) {
     if (pattern.test(text)) positiveCount++;
+  }
+
+  if (positiveCount >= 1 && VISIT_RE.test(text)) {
+    return {
+      sentiment: "positive",
+      reasoning: "Positive reply asking to see products in person — booking an experience-centre visit",
+      action: "book_visit",
+    };
   }
 
   if (positiveCount >= 2) {
@@ -151,7 +184,8 @@ function classifySentimentKeywords(
 export async function runResponseMonitorAgent(
   leadId: string,
   channel: OutreachChannel,
-  messageBody?: string
+  messageBody?: string,
+  noReplyNote?: string
 ): Promise<ResponseEvent> {
   const startTime = Date.now();
 
@@ -160,22 +194,58 @@ export async function runResponseMonitorAgent(
   try {
     let sentiment: ResponseSentiment;
     let reasoning: string;
-    let action: ResponseEvent["action"];
+    let action: ResponseAction;
+    let visitInfo: ResponseEvent["visit"];
 
     if (!messageBody) {
       // No reply case
       sentiment = "no_reply";
-      reasoning = "No response received within monitoring window";
+      reasoning = noReplyNote || "No response received within monitoring window";
       action = "nurture";
     } else {
       // Classify the response — use keyword-based in simulation mode, LLM otherwise
-      const { config } = await import("../config.js");
-      const classification = config.simulationMode
+      const classification = !llmEnabled()
         ? classifySentimentKeywords(messageBody)
         : await classifySentimentLLM(messageBody);
       sentiment = classification.sentiment;
       reasoning = classification.reasoning;
       action = classification.action;
+    }
+
+    // Book an experience-centre visit (F3)
+    if (action === "book_visit") {
+      const lead = await leadsCol().findOne({ _id: leadId });
+      const strategyDoc = await strategiesCol().findOne({ leadId }, { sort: { generatedAt: -1 } });
+      let bundleBrands: string[] = [];
+      try {
+        bundleBrands = ((JSON.parse(String(strategyDoc?.bundle || "{}")) as { items?: Array<{ brandId: string }> }).items || []).map((i) => i.brandId);
+      } catch { /* ignore */ }
+      const match = bestCentreForBrands(lead?.projectCity as string | undefined, bundleBrands);
+      if (match && lead) {
+        const when = new Date();
+        when.setUTCDate(when.getUTCDate() + (when.getUTCDay() >= 4 ? 4 : 2));
+        when.setUTCHours(5, 30, 0, 0); // 11:00 IST
+        const visit = {
+          centreId: match.centre.id,
+          centreCity: match.centre.city,
+          brandName: getBrand(match.centre.brandId)?.name || match.centre.brandId,
+          scheduledAt: when.toISOString(),
+        };
+        await visitsCol().insertOne({
+          _id: nanoid(),
+          orgId: lead.orgId,
+          leadId,
+          companyName: lead.companyName,
+          contactName: lead.contactName,
+          address: match.centre.address,
+          mapUrl: match.centre.mapUrl,
+          status: "scheduled",
+          createdAt: new Date().toISOString(),
+          ...visit,
+        });
+        visitInfo = visit;
+        reasoning = `${reasoning} Visit booked at ${visit.brandName}, ${visit.centreCity}.`;
+      }
     }
 
     const responseEvent: ResponseEvent = {
@@ -186,6 +256,7 @@ export async function runResponseMonitorAgent(
       classificationReasoning: reasoning,
       receivedAt: new Date().toISOString(),
       action,
+      visit: visitInfo,
     };
 
     // Persist to DB
@@ -198,6 +269,7 @@ export async function runResponseMonitorAgent(
       classificationReasoning: reasoning,
       action,
       receivedAt: responseEvent.receivedAt,
+      visit: visitInfo || null,
     });
 
     // Update lead status based on action
@@ -207,10 +279,9 @@ export async function runResponseMonitorAgent(
         { $set: { status: "do_not_contact" } }
       );
     } else if (action === "escalate_human") {
-      await leadsCol().updateOne(
-        { _id: leadId },
-        { $set: { status: "active" } }
-      );
+      await leadsCol().updateOne({ _id: leadId }, { $set: { status: "active" } });
+    } else if (action === "book_visit") {
+      await leadsCol().updateOne({ _id: leadId }, { $set: { status: "visit_booked" } });
     }
 
     const durationMs = Date.now() - startTime;
@@ -252,6 +323,8 @@ export async function simulateNoReply(
       "Hi, I saw your message. We're evaluating solutions in this space. Can you send over a deck?",
       "Sure, happy to connect. I'm free Thursday at 2pm IST — does that work?",
       "This caught my eye. Let's schedule a quick call — send me your Calendly.",
+      "Lovely — can we visit your experience centre on Thursday to see the finishes in person?",
+      "Interested. Could my team come by the showroom next week to see samples?",
     ];
     const msg = positiveResponses[Math.abs(hash) % positiveResponses.length];
     return runResponseMonitorAgent(leadId, channel, msg);

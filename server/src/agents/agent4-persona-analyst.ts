@@ -2,230 +2,135 @@ import { nanoid } from "nanoid";
 import { config } from "../config.js";
 import { personaProfilesCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
-import { llmGenerateText } from "../lib/llm.js";
-import type {
-  EnrichedLead,
-  PersonaProfile,
-  PersonaArchetype,
-} from "../types/index.js";
+import { llmGenerateText, hasLLMKey, llmEnabled } from "../lib/llm.js";
+import { SEGMENTS } from "../allhome/catalog.js";
+import type { EnrichedLead, PersonaProfile, PersonaArchetype } from "../types/index.js";
 
 const AGENT_NUMBER = 4;
 const AGENT_NAME = "Persona Analyst";
 
-// ─── LLM-Based Classification ───
+type Archetype = Omit<PersonaProfile, "leadId" | "generatedAt" | "reasoning" | "archetype"> & { archetype: PersonaArchetype };
 
-const SYSTEM_PROMPT = `You are an expert B2B buyer persona analyst. Given a lead's professional details, classify them into EXACTLY ONE of four communication archetypes:
+/** Specifier archetypes for the premium architecture & interiors market. */
+export const ARCHETYPES: Record<PersonaArchetype, Archetype> = {
+  design_architect: {
+    archetype: "design_architect",
+    archetypeLabel: "Design-led Architect",
+    confidence: 0.86,
+    traits: ["Design-intent driven", "Detail-obsessed", "Values material honesty", "Protective of the elevation"],
+    communicationStyle: "Visual, precise, peer-to-peer — show finishes and details, not brochures",
+    preferredTone: "Insight-led and design-literate; reference their project and design language",
+    avoidInMessaging: ["Discount-led pitches", "Generic catalogues", "Over-promising timelines", "Salesy urgency"],
+    talkingPoints: ["Keeping design intent intact from drawings to site", "Seeing real material and finish samples before specifying", "Fewer vendors to coordinate across facade, windows and lighting"],
+  },
+  aesthetic_designer: {
+    archetype: "aesthetic_designer",
+    archetypeLabel: "Aesthetic-first Interior Designer",
+    confidence: 0.84,
+    traits: ["Mood-board thinker", "Client-facing", "Wants a curated palette", "Hates vendor juggling"],
+    communicationStyle: "Warm, visual, quick — WhatsApp with images works best",
+    preferredTone: "Relationship-first, curated, low-pressure",
+    avoidInMessaging: ["Technical jargon", "Long spec dumps", "Cold formality"],
+    talkingPoints: ["A cohesive palette across hardware, bath, lighting and finishes", "Somewhere to take clients to see and choose finishes", "Not being the one chasing vendors for after-sales"],
+  },
+  developer_buyer: {
+    archetype: "developer_buyer",
+    archetypeLabel: "Cost & Timeline Developer",
+    confidence: 0.82,
+    traits: ["Thinks in project economics", "Delivery-date driven", "Brand value for sales", "Procurement-led"],
+    communicationStyle: "Concise, numbers-first, outcome-oriented email",
+    preferredTone: "Insight-led ROI: premiumisation, delivery certainty, consolidated procurement",
+    avoidInMessaging: ["Vague claims", "Small-ticket framing", "Unclear lead times"],
+    talkingPoints: ["Predictable lead times that protect the construction schedule", "Premium specifications that help sell inventory", "Consolidating vendors and after-sales across categories"],
+  },
+  execution_contractor: {
+    archetype: "execution_contractor",
+    archetypeLabel: "Execution-focused Contractor",
+    confidence: 0.8,
+    traits: ["Site-first", "Availability-obsessed", "Hates rework", "Margin-conscious"],
+    communicationStyle: "Direct and practical — WhatsApp, short and specific",
+    preferredTone: "Peer problem-solving: availability, installation support, no delays",
+    avoidInMessaging: ["Design theory", "Marketing fluff", "Slow responses"],
+    talkingPoints: ["Material arriving on time so site work doesn't stall", "Avoiding rework from mismatched components", "Fewer vendors to coordinate on site"],
+  },
+  premium_homeowner: {
+    archetype: "premium_homeowner",
+    archetypeLabel: "Premium Homeowner",
+    confidence: 0.78,
+    traits: ["Emotionally invested", "Wants to see and touch", "Trust-seeking", "Transparency on what goes in"],
+    communicationStyle: "Friendly and reassuring — WhatsApp, with an invite to visit",
+    preferredTone: "Relationship-first and transparent: what goes in, how it will look, after-sales",
+    avoidInMessaging: ["Jargon", "Pressure tactics", "Hidden costs"],
+    talkingPoints: ["Seeing and touching finishes before deciding", "Transparency about what goes into the home", "Not having to coordinate many vendors with the architect"],
+  },
+};
 
-1. "strategic_executive" — C-level / VP / senior leadership who respond to insight-led, ROI-focused, big-picture messaging. They care about business impact, competitive advantage, and revenue growth.
-
-2. "practitioner" — Hands-on technical leaders (Engineering Managers, Tech Leads, Senior ICs) who respond to peer-level, problem-specific messaging. They care about technical quality, efficiency, and solving real problems.
-
-3. "innovator" — Forward-thinking leaders (Heads of Product, Innovation Officers, startup founders) who respond to challenger framing that questions the status quo. They care about disruption, new approaches, and being first-movers.
-
-4. "networker" — Relationship-oriented leaders (Business Development, Partnerships, Community leads) who respond to relationship-first, low-pressure messaging. They care about mutual value, connections, and long-term partnerships.
-
-Return your analysis as JSON with these exact fields:
-{
-  "archetype": "strategic_executive" | "practitioner" | "innovator" | "networker",
-  "archetypeLabel": "Strategic Executive" | "Practitioner" | "Innovator" | "Networker",
-  "confidence": 0.0 to 1.0,
-  "traits": ["trait1", "trait2", "trait3"],
-  "communicationStyle": "description of how this person prefers to communicate",
-  "preferredTone": "description of the ideal messaging tone",
-  "avoidInMessaging": ["thing1", "thing2"],
-  "reasoning": "one paragraph explaining why this archetype was selected"
-}
-
-Return ONLY the JSON, no other text.`;
-
-async function classifyWithLLM(lead: EnrichedLead): Promise<PersonaProfile> {
-  const userMessage = `Classify this lead:
-- Name: ${lead.contactName}
-- Title: ${lead.contactTitle}
-- Seniority: ${lead.seniority || "Unknown"}
-- Company: ${lead.companyName}
-- Domain: ${lead.companyDomain || "Unknown"}
-- Industry: ${lead.industry || "Unknown"}
-- Company Size: ${lead.companySize || "Unknown"} employees
-- Funding Stage: ${lead.fundingStage || "Unknown"}${lead.fundingAmount ? ` (${lead.fundingAmount})` : ""}
-- Headquarters: ${lead.headquarters || "Unknown"}
-- Tech Stack: ${lead.techStack?.join(", ") || "Unknown"}
-- LinkedIn: ${lead.contactLinkedIn || "Not available"}
-
-Context for classification: What does "${lead.contactTitle}" at a ${lead.companySize || "mid-size"}-employee ${lead.industry || "tech"} company (${lead.fundingStage || "growth"} stage) tell you about their daily priorities, communication style, and what messaging would resonate?`;
-
-  try {
-    const response = await llmGenerateText(SYSTEM_PROMPT, userMessage);
-
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        archetype: PersonaArchetype;
-        archetypeLabel: string;
-        confidence: number;
-        traits: string[];
-        communicationStyle: string;
-        preferredTone: string;
-        avoidInMessaging: string[];
-        reasoning: string;
-      };
-
-      return {
-        leadId: lead.id,
-        archetype: parsed.archetype,
-        archetypeLabel: parsed.archetypeLabel,
-        confidence: parsed.confidence,
-        traits: parsed.traits,
-        communicationStyle: parsed.communicationStyle,
-        preferredTone: parsed.preferredTone,
-        avoidInMessaging: parsed.avoidInMessaging,
-        reasoning: parsed.reasoning,
-        generatedAt: new Date().toISOString(),
-      };
-    }
-
-    // If JSON parsing fails, fallback to rule-based
-    return classifyWithRules(lead);
-  } catch {
-    // Fallback to rule-based classification
-    return classifyWithRules(lead);
-  }
-}
-
-// ─── Rule-Based Fallback (used when LLM is unavailable or in simulation) ───
+const SEGMENT_TO_ARCHETYPE: Record<string, PersonaArchetype> = {
+  architect: "design_architect",
+  id_firm: "aesthetic_designer",
+  developer: "developer_buyer",
+  contractor: "execution_contractor",
+  homeowner: "premium_homeowner",
+};
 
 function classifyWithRules(lead: EnrichedLead): PersonaProfile {
-  const title = (lead.contactTitle || "").toLowerCase();
-  const seniority = lead.seniority || "";
-
-  let archetype: PersonaArchetype;
-  let archetypeLabel: string;
-  let confidence: number;
-  let traits: string[];
-  let communicationStyle: string;
-  let preferredTone: string;
-  let avoidInMessaging: string[];
-  let reasoning: string;
-
-  // Classification rules
-  if (
-    seniority === "C-Level" ||
-    seniority === "VP" ||
-    title.includes("chief") ||
-    title.includes("vp ") ||
-    title.includes("vice president") ||
-    title.includes("head of")
-  ) {
-    archetype = "strategic_executive";
-    archetypeLabel = "Strategic Executive";
-    confidence = 0.85;
-    traits = ["ROI-focused", "Big-picture thinker", "Time-constrained", "Decision maker"];
-    communicationStyle = "Concise, data-backed, outcome-oriented";
-    preferredTone = "Insight-led, executive-level, ROI-focused";
-    avoidInMessaging = ["Technical jargon", "Feature lists", "Long messages", "Generic pitches"];
-    reasoning = `${lead.contactTitle} at ${lead.companyName} is a senior leader (${seniority}). Executives at this level respond best to insight-led messaging that demonstrates ROI and strategic value rather than technical details.`;
-  } else if (
-    title.includes("engineer") ||
-    title.includes("developer") ||
-    title.includes("architect") ||
-    title.includes("technical") ||
-    title.includes("cto") ||
-    (seniority === "Director" && title.includes("engineering"))
-  ) {
-    archetype = "practitioner";
-    archetypeLabel = "Practitioner";
-    confidence = 0.80;
-    traits = ["Detail-oriented", "Technically curious", "Problem-solver", "Values efficiency"];
-    communicationStyle = "Technical, specific, peer-to-peer";
-    preferredTone = "Peer-level, problem-specific, technically credible";
-    avoidInMessaging = ["Marketing fluff", "Buzzwords", "Vague claims", "Pressure tactics"];
-    reasoning = `${lead.contactTitle} is a technical practitioner who will respond best to peer-level messaging that addresses specific technical challenges and demonstrates credibility.`;
-  } else if (
-    title.includes("product") ||
-    title.includes("innovation") ||
-    title.includes("founder") ||
-    title.includes("strategy")
-  ) {
-    archetype = "innovator";
-    archetypeLabel = "Innovator";
-    confidence = 0.75;
-    traits = ["Forward-thinking", "Risk-tolerant", "Status-quo challenger", "Visionary"];
-    communicationStyle = "Bold, thought-provoking, challenging";
-    preferredTone = "Challenger framing, questions assumptions, paints a new future";
-    avoidInMessaging = ["Conservative language", "Incremental improvements", "Risk-averse framing"];
-    reasoning = `${lead.contactTitle} in ${lead.industry || "tech"} is likely an innovator archetype — they respond to messaging that challenges conventional approaches and paints a vision of what's possible.`;
-  } else {
-    archetype = "networker";
-    archetypeLabel = "Networker";
-    confidence = 0.65;
-    traits = ["Relationship-oriented", "Community-minded", "Trust-builder", "Collaborative"];
-    communicationStyle = "Warm, conversational, mutual-value focused";
-    preferredTone = "Relationship-first, low-pressure, mutual benefit";
-    avoidInMessaging = ["Hard sells", "Urgency tactics", "Transactional language", "Cold formality"];
-    reasoning = `${lead.contactTitle} at ${lead.companyName} is best approached with relationship-first messaging that emphasizes mutual value and long-term partnership.`;
-  }
-
+  const archetype = SEGMENT_TO_ARCHETYPE[lead.segment || "architect"] || "design_architect";
+  const base = ARCHETYPES[archetype];
+  const seg = lead.segment ? SEGMENTS[lead.segment].label : "Specifier";
   return {
+    ...base,
     leadId: lead.id,
-    archetype,
-    archetypeLabel,
-    confidence,
-    traits,
-    communicationStyle,
-    preferredTone,
-    avoidInMessaging,
-    reasoning,
+    reasoning: `${lead.contactUnknown ? `The ${lead.companyName} team` : `${lead.contactName}${lead.contactTitle ? ` (${lead.contactTitle})` : ""} at ${lead.companyName}`} is a ${seg.toLowerCase()} working on ${lead.projectName || "a premium project"}. ${base.archetypeLabel}s respond best to ${base.preferredTone.toLowerCase()}.`,
     generatedAt: new Date().toISOString(),
   };
 }
 
-// ─── Main Agent Function ───
+async function classifyWithLLM(lead: EnrichedLead): Promise<PersonaProfile> {
+  const rules = classifyWithRules(lead);
+  const system = `You classify B2B/B2C buyers of premium architectural & interior products in India into ONE archetype:
+${Object.values(ARCHETYPES).map((a) => `- "${a.archetype}": ${a.archetypeLabel} — ${a.preferredTone}`).join("\n")}
+Return ONLY JSON: {"archetype": string, "confidence": 0-1, "traits": string[3-4], "reasoning": string}`;
+  const prompt = `Name: ${lead.contactUnknown ? "unknown (studio team)" : lead.contactName}\nTitle: ${lead.contactTitle}\nFirm: ${lead.companyName} (${lead.firmType || ""})\nSpecialties: ${(lead.specialties || []).join(", ") || "unknown"}\n${lead.research?.summary ? `Public profile: ${lead.research.summary}\n` : ""}Project: ${lead.projectAssumed ? "not provided" : `${lead.projectName || "unnamed"} (${lead.projectType}, ${lead.projectStage} stage${lead.projectValue ? `, ${lead.projectValue}` : ""})`}`;
+  try {
+    const text = await llmGenerateText(system, prompt);
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) return rules;
+    const p = JSON.parse(m[0]) as { archetype?: PersonaArchetype; confidence?: number; traits?: string[]; reasoning?: string };
+    if (!p.archetype || !ARCHETYPES[p.archetype]) return rules;
+    const base = ARCHETYPES[p.archetype];
+    const conf = Number(p.confidence);
+    return {
+      ...base,
+      leadId: lead.id,
+      confidence: Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : base.confidence,
+      traits: Array.isArray(p.traits) && p.traits.length ? p.traits.map(String).slice(0, 5) : base.traits,
+      reasoning: p.reasoning || rules.reasoning,
+      generatedAt: new Date().toISOString(),
+    };
+  } catch {
+    return rules;
+  }
+}
 
 export async function runPersonaAnalystAgent(lead: EnrichedLead): Promise<PersonaProfile> {
-  const startTime = Date.now();
-
+  const start = Date.now();
   sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "running");
-
   try {
-    let profile: PersonaProfile;
-
-    // Use LLM if available and not in simulation, otherwise fall back to rules
-    if (!config.simulationMode && config.groqApiKey && config.groqApiKey !== "" && config.groqApiKey.length > 10) {
-      profile = await classifyWithLLM(lead);
-    } else {
-      profile = classifyWithRules(lead);
-    }
-
-    // Persist to DB
+    const profile = llmEnabled() ? await classifyWithLLM(lead) : classifyWithRules(lead);
     await personaProfilesCol().insertOne({
       _id: nanoid(),
-      leadId: lead.id,
-      archetype: profile.archetype,
-      archetypeLabel: profile.archetypeLabel,
-      confidence: profile.confidence,
+      ...profile,
       traits: JSON.stringify(profile.traits),
-      communicationStyle: profile.communicationStyle,
-      preferredTone: profile.preferredTone,
       avoidInMessaging: JSON.stringify(profile.avoidInMessaging),
-      reasoning: profile.reasoning,
-      generatedAt: profile.generatedAt,
+      talkingPoints: JSON.stringify(profile.talkingPoints),
     });
-
-    const durationMs = Date.now() - startTime;
-    const summary = `Archetype: ${profile.archetypeLabel} (${Math.round(profile.confidence * 100)}% confidence) — Tone: ${profile.preferredTone.slice(0, 50)}`;
-
+    const summary = `Archetype: ${profile.archetypeLabel} (${Math.round(profile.confidence * 100)}%) — ${profile.preferredTone.slice(0, 60)}`;
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
-    sseManager.emit("score_update", lead.id, {
-      agent: AGENT_NAME,
-      persona: profile,
-    });
-
-    console.log(`✅ Agent 4 complete in ${durationMs}ms — ${summary}`);
+    sseManager.emit("score_update", lead.id, { agent: AGENT_NAME, persona: profile });
+    console.log(`✅ Agent 4 complete in ${Date.now() - start}ms — ${summary}`);
     return profile;
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Unknown error";
-    sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, errMsg);
+    sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");
     throw error;
   }
 }

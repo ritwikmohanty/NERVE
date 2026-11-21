@@ -4,82 +4,57 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { config } from "./config.js";
 import { api } from "./api/routes.js";
+import { authRoutes } from "./auth/index.js";
+import { connectDB, ensureIndexes } from "./db/index.js";
+import { seedDemoWorkspace } from "./db/seed-demo.js";
 
-// ─── MongoDB ───
-import { connectDB, ensureIndexes, scoringWeightsCol } from "./db/index.js";
-import { nanoid } from "nanoid";
-import { DEFAULT_SCORING_WEIGHTS } from "./types/index.js";
-
-// ─── Seed default weights if not present ───
-async function seedDefaultWeights() {
-  const now = new Date().toISOString();
-  const col = scoringWeightsCol();
-
-  for (const [dimension, weight] of Object.entries(DEFAULT_SCORING_WEIGHTS)) {
-    await col.updateOne(
-      { dimension },
-      {
-        $setOnInsert: {
-          _id: nanoid(),
-          dimension,
-          weight,
-          updatedAt: now,
-          updatedBy: "seed",
-          previousWeight: weight,
-        },
-      },
-      { upsert: true }
-    );
-  }
-  console.log("⚖️  Default scoring weights loaded");
-}
-
-// ─── Build App ───
 const app = new Hono();
 
-// Middleware
-app.use("*", cors({ origin: config.clientUrl, credentials: true }));
+// Allowed browser origins: CLIENT_URL (comma-separated for multiple), Vercel previews of
+// the same project, and any localhost port for development.
+const allowedOrigins = config.clientUrl.split(",").map((s) => s.trim().replace(/\/$/, "")).filter(Boolean);
+const vercelProject = process.env.VERCEL_PROJECT_SLUG; // e.g. "nerve-allhome" → allows nerve-allhome-*.vercel.app previews
+
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return allowedOrigins[0] || "*";
+      if (allowedOrigins.includes(origin)) return origin;
+      if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
+      if (vercelProject && new RegExp(`^https://${vercelProject}(-[a-z0-9-]+)?\\.vercel\\.app$`).test(origin)) return origin;
+      return null;
+    },
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  })
+);
 app.use("*", logger());
 
-// Mount API routes
+app.route("/api/auth", authRoutes);
 app.route("/api", api);
 
-// Root
-app.get("/", (c) => {
-  return c.json({
-    name: "NERVE Engine",
-    version: "1.0.0",
-    description: "Autonomous Agentic Outreach Engine",
-    modes: {
-      targeted: "POST /api/leads/execute — Evaluate a specific company",
-      discovery: "POST /api/leads/discover — Get AI-recommended companies",
-    },
-    events: "GET /api/events — Server-Sent Events for real-time updates",
+app.get("/", (c) =>
+  c.json({
+    name: "NERVE Engine — AllHome edition",
+    version: "2.0.0",
+    description: "Autonomous specifier outreach engine for AllHome's brand collective",
     health: "GET /api/health",
-  });
-});
+  })
+);
 
-// ─── Start Server ───
 async function start() {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error(`❌ Cannot connect to MongoDB at ${config.mongoUri.replace(/\/\/[^@]*@/, "//***@")}. Start it first (e.g. \`brew services start mongodb-community\`) or set MONGO_URI.`);
+    throw err;
+  }
   await ensureIndexes();
-  await seedDefaultWeights();
+  await seedDemoWorkspace();
 
-  console.log(`
-╔══════════════════════════════════════════╗
-║         🧠 NERVE Engine v1.0.0          ║
-║                                          ║
-║  Mode: ${config.simulationMode ? "SIMULATION 🔵" : "LIVE 🔴       "}                   ║
-║  Port: ${config.port}                              ║
-║  Client: ${config.clientUrl}             ║
-║  DB: MongoDB (${config.mongoDbName})                ║
-╚══════════════════════════════════════════╝
-`);
-
-  serve({
-    fetch: app.fetch,
-    port: config.port,
-  });
+  serve({ fetch: app.fetch, port: config.port });
+  console.log(`🧠 NERVE (AllHome edition) — ${config.simulationMode ? "SIMULATION" : "LIVE"} mode — http://localhost:${config.port}`);
 }
 
 start().catch((err) => {

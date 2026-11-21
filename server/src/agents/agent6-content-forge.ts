@@ -1,333 +1,366 @@
 import { nanoid } from "nanoid";
-import { config } from "../config.js";
 import { generatedContentCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
-import { llmGenerateText } from "../lib/llm.js";
-import type {
-  EnrichedLead,
-  SignalBundle,
-  IntentScore,
-  PersonaProfile,
-  OutreachStrategy,
-  GeneratedContent,
-  TouchContent,
-  OutreachChannel,
-  ToneFramework,
-} from "../types/index.js";
+import { llmGenerateText, llmEnabled } from "../lib/llm.js";
+import { ALLHOME, getBrand, PROJECT_TYPES, STAGES, stageIndex, SEGMENTS, type Brand } from "../allhome/catalog.js";
+import type { EnrichedLead, SignalBundle, IntentScore, PersonaProfile, OutreachStrategy, GeneratedContent, TouchContent, OutreachChannel, TouchPoint } from "../types/index.js";
 
 const AGENT_NUMBER = 6;
 const AGENT_NAME = "Content Forge";
 
-// ─── Tone Framework Descriptions ───
-
-const TONE_GUIDES: Record<ToneFramework, string> = {
-  insight_led: `Insight-Led: Lead with a data point or industry insight the recipient hasn't considered. Frame your product as the answer to a strategic shift. Be concise, executive-level, ROI-focused.`,
-  peer_problem: `Peer Problem: Speak as a technical peer who understands their specific pain. Reference concrete technical challenges. Be specific, credible, jargon-appropriate but not salesy.`,
-  challenger: `Challenger: Question the status quo. Present a bold, slightly provocative perspective on their industry. Make them think differently. Be confident, visionary, not arrogant.`,
-  relationship_first: `Relationship-First: Build rapport before pitching. Find genuine common ground. Be warm, conversational, zero-pressure. Focus on mutual value and long-term relationship.`,
-  growth_urgency: `Growth Urgency: This is a time-sensitive opportunity. The lead is very hot — act with appropriate urgency without being desperate. Highlight competitive advantage and market timing.`,
-};
-
-const CHANNEL_GUIDES: Record<OutreachChannel, { maxLength: number; format: string }> = {
-  linkedin_dm: {
-    maxLength: 300,
-    format: "Short, conversational, no subject line. Max 300 chars. Personal and direct. No HTML.",
-  },
-  email: {
-    maxLength: 800,
-    format: "Professional email with clear subject line. 3-5 short paragraphs max. Include a specific CTA. Plain text preferred.",
-  },
-  whatsapp: {
-    maxLength: 200,
-    format: "Ultra-short, mobile-friendly. Max 200 chars. Casual but professional. Use line breaks. No HTML.",
-  },
-};
-
-// ─── Content Generation ───
-
-function buildContentPrompt(
-  lead: EnrichedLead,
-  signals: SignalBundle,
-  intent: IntentScore,
-  persona: PersonaProfile,
-  strategy: OutreachStrategy,
-  touchNumber: 1 | 2 | 3,
-  channel: OutreachChannel
-): string {
-  const toneGuide = TONE_GUIDES[strategy.toneFramework];
-  const channelGuide = CHANNEL_GUIDES[channel];
-
-  const topSignal = signals.topSignal
-    ? `Their top signal: "${signals.topSignal.title}" (${signals.topSignal.category}, ${signals.topSignal.strength} strength)`
-    : "No recent signals detected";
-
-  const touchGuide =
-    touchNumber === 1
-      ? "This is the FIRST touch — introduce yourself and the value proposition. Hook with an insight."
-      : touchNumber === 2
-        ? "This is the SECOND touch (follow-up). Reference the first message briefly. Add new value — share a relevant case study, data point, or resource."
-        : "This is the THIRD and FINAL touch. Create gentle urgency. Offer a concrete next step (e.g. '15-min call this Thursday?'). Make it easy to say yes or no.";
-
-  return `Generate a ${channel === "email" ? "sales email" : channel === "linkedin_dm" ? "LinkedIn DM" : "WhatsApp message"} for this outreach:
-
-TARGET:
-- Name: ${lead.contactName}
-- Title: ${lead.contactTitle} at ${lead.companyName}
-- Industry: ${lead.industry || "Technology"}
-- Company Size: ${lead.companySize || "Unknown"}
-- Seniority: ${lead.seniority || "Unknown"}
-- ${topSignal}
-
-PERSONA: ${persona.archetypeLabel}
-- Communication style: ${persona.communicationStyle}
-- Avoid: ${persona.avoidInMessaging.join(", ")}
-
-SCORING: ${intent.tier} (${intent.compositeScore}/100)
-- Top factors: ${intent.topContributors.join(", ")}
-
-TONE FRAMEWORK:
-${toneGuide}
-
-CHANNEL CONSTRAINTS:
-${channelGuide.format}
-Max length: ${channelGuide.maxLength} characters
-
-TOUCH:
-${touchGuide}
-
-${channel === "email" ? "Return as:\nSUBJECT: <subject line>\n\n<email body>" : "Return ONLY the message body, no labels."}
-
-Important: Do NOT use placeholder brackets like [Company] or [Name]. Use the actual values provided. Be specific and genuine.`;
+export interface ContentCtx {
+  senderName: string;
+  senderTitle: string;
 }
 
-async function generateTouchContent(
-  lead: EnrichedLead,
-  signals: SignalBundle,
-  intent: IntentScore,
-  persona: PersonaProfile,
-  strategy: OutreachStrategy,
-  touchNumber: 1 | 2 | 3,
-  channel: OutreachChannel
-): Promise<TouchContent> {
-  const prompt = buildContentPrompt(lead, signals, intent, persona, strategy, touchNumber, channel);
+const CHANNEL_RULES: Record<OutreachChannel, { maxLength: number; rules: string }> = {
+  whatsapp: {
+    maxLength: 480,
+    rules: "WhatsApp: 3 short paragraphs maximum, under 450 characters in total, plain text, no emoji. Read naturally on a phone. No subject line.",
+  },
+  linkedin_dm: {
+    maxLength: 380,
+    rules: "LinkedIn DM: under 320 characters, 2–3 sentences, conversational and specific. No subject line, no emoji.",
+  },
+  email: {
+    maxLength: 1400,
+    rules: "Email: subject line under 60 characters that names the project or the specific capability (never 'Quick note' / 'Following up'). Body 90–150 words in 3–4 short paragraphs, plain text, one clear ask, then a sign-off with the sender's name and title.",
+  },
+};
 
-  const systemPrompt = `You are an elite B2B copywriter who writes hyper-personalized outreach messages. Every message must feel hand-crafted, not templated. Never use generic phrases like "I hope this finds you well" or "I wanted to reach out". Be specific, concise, and human.`;
+const BANNED = ["I hope this finds you well", "I wanted to reach out", "reaching out", "touch base", "synergy", "game-changer", "game changer", "revolutionize", "revolutionise", "cutting-edge", "world-class", "one-stop shop", "elevate your", "unlock", "leverage", "circle back", "just checking in"];
 
-  const response = await llmGenerateText(systemPrompt, prompt);
+// ─── Context assembly ───
+
+function firstName(name: string): string {
+  return name.split(" ")[0] || name;
+}
+
+function brands(ids: string[] = []): Brand[] {
+  return ids.map((id) => getBrand(id)).filter((b): b is Brand => !!b);
+}
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] || "AllHome";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function stageLabel(lead: EnrichedLead): string {
+  return STAGES[stageIndex(lead.projectStage || "design")].label.toLowerCase();
+}
+
+/** How we may refer to the project without inventing anything. */
+function projectRef(lead: EnrichedLead): string {
+  if (lead.projectName) return lead.projectName;
+  const type = lead.projectType ? PROJECT_TYPES[lead.projectType].toLowerCase() : "premium";
+  return lead.projectAssumed ? "your upcoming projects" : `your ${type} project${lead.projectCity ? ` in ${lead.projectCity}` : ""}`;
+}
+
+/** One concrete, verifiable detail about the recipient (or undefined). */
+function recipientHook(lead: EnrichedLead, signals: SignalBundle): string | undefined {
+  const top = signals.topSignal;
+  if (lead.dataSource === "live") {
+    if (top && top.category !== "other") return `I came across ${top.title.replace(/\.$/, "")}`;
+    if (lead.portfolio?.[0]) return `I've been looking at ${lead.portfolio[0]}`;
+    if (lead.specialties?.[0]) return `Your studio's work in ${lead.specialties[0].toLowerCase()} stood out`;
+    return undefined;
+  }
+  if (!top) return undefined;
+  const project = projectRef(lead);
+  switch (top.category) {
+    case "project_launch": return `Congratulations on ${project}`;
+    case "possession_milestone": return `Good to see ${project} moving into interiors`;
+    case "award_publication": return "Congratulations on the recent recognition for your work";
+    case "exhibition": return "Good to hear your team was at Design POV";
+    case "office_opening": return "Congratulations on the new studio";
+    case "hiring_spike": return "Looks like the studio is growing fast";
+    default: return undefined;
+  }
+}
+
+function centreLine(strategy: OutreachStrategy): string {
+  const c = strategy.experienceCentre;
+  if (!c) return "one of our experience centres";
+  const near = c.sameCity || c.distanceKm < 0 || c.distanceKm <= 150;
+  return near ? `our ${c.brandName} experience centre in ${c.centre.city}` : `our ${c.brandName} experience centre in ${c.centre.city} (or we can courier a sample kit)`;
+}
+
+/** The only sign-off a draft may use — models otherwise invent sender names. */
+function signOff(channel: OutreachChannel, ctx: ContentCtx): string {
+  const who = /allhome/i.test(ctx.senderName) ? ctx.senderName : `${ctx.senderName}, AllHome`;
+  return channel === "email" ? `Regards,\n${ctx.senderName}\n${ctx.senderTitle}` : `— ${who}`;
+}
+
+/** Replace whatever closing the model wrote with the exact sign-off. */
+function enforceSignOff(body: string, channel: OutreachChannel, ctx: ContentCtx): string {
+  const lines = body.trimEnd().split("\n");
+  // Drop trailing closing lines (dash sign-offs, "Regards," / "Best," and short name/title lines after them)
+  const closing = /^(—|–|-{1,2})\s*\S|^(warm\s+)?(best\s+)?(kind\s+)?(regards|wishes|thanks|thank you|cheers|sincerely)\b[,!.]?\s*$/i;
+  let cut = lines.length;
+  for (let i = lines.length - 1; i >= Math.max(0, lines.length - 4); i--) {
+    const l = lines[i].trim();
+    if (!l) { cut = i; continue; }
+    if (closing.test(l)) { cut = i; break; }
+    if (l.length > 60 || /[?.!]$/.test(l)) break;
+  }
+  // Also drop an inline sign-off glued to the last sentence ("…centre? – AllHome Specifier Desk")
+  const kept = lines.slice(0, cut).join("\n").trimEnd().replace(/\s+[—–-]{1,2}\s+[^?.!\n]*(allhome|desk|team)[^?.!\n]*$/i, "");
+  return `${kept}\n\n${signOff(channel, ctx)}`;
+}
+
+/** Where in the build the featured brand is specified, relative to the project's current stage. */
+function focusStageLine(lead: EnrichedLead, tp: TouchPoint): string {
+  const b = brands(tp.focusBrands)[0];
+  if (!b) return "";
+  const stages = b.specifyAt.map((st) => STAGES[stageIndex(st)].label);
+  if (lead.projectAssumed) return `${b.name} is typically specified during: ${stages.join(" / ")}.`;
+  const cur = stageIndex(lead.projectStage || "design");
+  const idx = b.specifyAt.map((st) => stageIndex(st));
+  if (idx.includes(cur)) return `${b.name} is specified at the CURRENT stage (${STAGES[cur].label}) — say "now is when it is specified".`;
+  const next = idx.filter((i) => i > cur).sort((x, y) => x - y)[0];
+  if (next !== undefined) return `${b.name} is specified at a LATER stage (${STAGES[next].label}); the project is currently at ${STAGES[cur].label}. Say the project is "heading towards ${STAGES[next].label.toLowerCase()}, when ${b.name} is usually specified" — never say it is specified now.`;
+  return `${b.name}'s usual specification stage (${stages.join(" / ")}) has passed — position it as a replacement / upgrade or for the next project.`;
+}
+
+/** The full grounding pack handed to the LLM — the only facts it may use. */
+function groundingPack(lead: EnrichedLead, signals: SignalBundle, persona: PersonaProfile, strategy: OutreachStrategy, tp: TouchPoint, ctx: ContentCtx): string {
+  const focus = brands(tp.focusBrands);
+  const r = lead.research;
+  const realSignals = signals.signals.filter((s) => s.category !== "linkedin_activity").slice(0, 3);
+  return [
+    `## About AllHome (sender)`,
+    `${ALLHOME.positioning} ${ALLHOME.model}`,
+    `Collective facts: ${ALLHOME.facts.join("; ")}.`,
+    `Why it matters to specifiers: one relationship instead of separate vendors for facade, windows, lighting, bath, hardware and finishes — consistent finishes, coordinated delivery, one point of after-sales.`,
+    ``,
+    `## Brands to feature in THIS message`,
+    ...focus.map((b) => `- ${b.name}${b.formalName ? ` (${b.formalName})` : ""}: ${b.pitch}\n  Product systems: ${b.productLines.join("; ")}\n  Services: ${b.services.join("; ") || "—"}\n  Verified figures: ${b.facts.join("; ")}${b.partners.length ? `\n  International brands carried: ${b.partners.slice(0, 6).join(", ")}` : ""}`),
+    ``,
+    `## Recipient`,
+    `Name: ${lead.contactUnknown ? "UNKNOWN — address the studio/team, not a person" : `${lead.contactName}${lead.contactTitle ? `, ${lead.contactTitle}` : ""}`}`,
+    `Firm: ${lead.companyName} (${lead.segment ? SEGMENTS[lead.segment].label : "specifier"})${lead.projectCity ? `, ${lead.projectCity}` : ""}`,
+    r?.summary ? `Public profile: ${r.summary}` : "",
+    lead.specialties?.length ? `Known for: ${lead.specialties.join(", ")}` : "",
+    lead.portfolio?.length ? `Public projects: ${lead.portfolio.join("; ")}` : "",
+    realSignals.length ? `Recent public signals:\n${realSignals.map((s) => `- ${s.title}${s.sourceUrl ? ` (${s.source})` : ""}`).join("\n")}` : "Recent public signals: none found",
+    ``,
+    `## Project`,
+    lead.projectAssumed
+      ? `Project details NOT provided. Do not name, size, type or describe any project (no "villa", "tower", "drawings of X"). Refer only to "${projectRef(lead)}" or to the firm's public work listed above.`
+      : `${projectRef(lead)} — ${lead.projectType ? PROJECT_TYPES[lead.projectType] : ""}, currently at ${stageLabel(lead)} stage${lead.projectValue ? `, approx. ${lead.projectValue}` : ""}.`,
+    lead.projectAssumed ? "" : `Internal planning notes (context only — do NOT quote timings, weeks or these phrases): ${strategy.bundle?.items.filter((i) => tp.focusBrands?.includes(i.brandId)).map((i) => `${i.brandName}: ${i.reason}`).join(" | ") || "—"}`,
+    `Stage context: the project is currently at ${lead.projectAssumed ? "an unknown stage" : stageLabel(lead)}. ${focusStageLine(lead, tp)}`,
+    ``,
+    `## Persona`,
+    `${persona.archetypeLabel}. Tone: ${persona.preferredTone}. What they care about (needs, NOT AllHome claims): ${persona.talkingPoints.slice(0, 3).join("; ")}. Avoid: ${persona.avoidInMessaging.join(", ")}.`,
+    ``,
+    `## Call to action options`,
+    `Visit ${centreLine(strategy)}; or a sample kit / finish board; or a 20-minute call to review drawings.`,
+    ``,
+    `## Sender`,
+    `${ctx.senderName}, ${ctx.senderTitle}`,
+    `Exact sign-off to use: "${signOff(tp.channel, ctx).replace(/\n/g, " / ")}" (on email put the name and title on separate lines)`,
+  ].filter((l) => l !== "").join("\n");
+}
+
+const PURPOSE: Record<number, string> = {
+  1: "Touch 1 (first contact): open with the one recipient-specific detail, connect it to ONE concrete capability of the featured brand(s) relevant to the current stage, then one low-friction ask.",
+  2: "Touch 2 (follow-up, a few days later): briefly reference the first message in one clause, then add new value — the attached one-page specification sheet (recommended product systems, lead times and order-by dates). Ask whether they'd like to review it at the experience centre or receive samples.",
+  3: "Touch 3 (timed to the next specification window): explain that the project is approaching the stage where the featured brand is usually specified, offer one concrete service of that brand (e.g. lighting design & lux calculations, shop drawings, finish samples) so they can lock it in early. Polite, no pressure.",
+};
+
+const SYSTEM = `You are a senior B2B copywriter on AllHome's specification team in India, writing outreach to architects, interior designers, developers, contractors and premium homeowners.
+
+Write like a knowledgeable industry peer: specific, concise, warm, never salesy. Indian business English.
+
+Hard rules:
+1. Use ONLY facts from the grounding pack. Never invent prices, discounts, delivery times, client names, project names, awards, statistics or personal details. Quote figures exactly as given (e.g. "3,500+ SKUs").
+2. Mention at most two brands, and at most two figures, in one message — pick the most relevant to the recipient's stage.
+3. Exactly one clear ask.
+4. If the recipient's name is UNKNOWN, greet the studio/team ("Hello team at <Firm>,") — never invent a person.
+5. If project details were not provided, do not name, type or describe a specific project.
+6. Do not characterise the recipient's design language, style, intent or preferences unless the pack states it explicitly. Referencing a public project by name is fine; interpreting it is not.
+7. Only claim products, services and figures listed for the featured brand. "What they care about" lines are the recipient's needs — never present them as AllHome capabilities.
+8. Never use these phrases: ${BANNED.join(", ")}.
+9. No markdown (no **, #, bullet symbols) — plain text only.
+10. Open with a greeting line: "Hi <first name>," (or "Hello team at <Firm>," when the name is unknown). First name is normal in Indian design practice; never "Dear Sir/Madam".
+11. Never state a number of weeks, a lead-time duration or a calendar date in the body. You may say the spec sheet "includes lead times and order-by dates" — the sheet carries the numbers.
+12. End with the exact sign-off given in the pack under "Sender" — never invent or change a sender name.
+
+Return ONLY JSON: {"subject": string|null, "body": string, "groundedIn": string[]}
+"groundedIn" lists the 2–4 specific facts from the pack you actually used (short phrases).`;
+
+// ─── Templates (deterministic fallback, same rules) ───
+
+function templateTouch(lead: EnrichedLead, strategy: OutreachStrategy, persona: PersonaProfile, signals: SignalBundle, tp: TouchPoint, ctx: ContentCtx): TouchContent {
+  const focus = brands(tp.focusBrands);
+  const lead1 = focus[0];
+  const names = joinNames(focus.map((b) => b.name));
+  const greet = lead.contactUnknown ? `Hello team at ${lead.companyName},` : `Hi ${firstName(lead.contactName)},`;
+  const hook = recipientHook(lead, signals);
+  const project = projectRef(lead);
+  const stage = stageLabel(lead);
+  const centre = centreLine(strategy);
+  const sign = `${ctx.senderName}\n${ctx.senderTitle}`;
+  const capability = lead1 ? lead1.pitch : ALLHOME.positioning;
+  const service = lead1?.services[0] ? lead1.services[0].charAt(0).toLowerCase() + lead1.services[0].slice(1) : "finish samples";
+  const grounded = [lead1?.facts[0], hook ? "recipient signal / public work" : undefined, strategy.experienceCentre ? `${strategy.experienceCentre.brandName} centre, ${strategy.experienceCentre.centre.city}` : undefined].filter(Boolean) as string[];
 
   let subject: string | undefined;
   let body: string;
 
-  if (channel === "email") {
-    const subjectMatch = response.match(/SUBJECT:\s*(.+?)(?:\n|$)/i);
-    subject = subjectMatch ? subjectMatch[1].trim() : `Quick note for ${lead.contactName}`;
-    body = response
-      .replace(/SUBJECT:\s*.+?\n/i, "")
-      .trim();
+  if (tp.channel === "email") {
+    if (tp.touchNumber === 1) {
+      subject = `${lead1?.name || "AllHome"} for ${lead.projectName || `${lead.companyName}'s next project`}`.slice(0, 60);
+      body = `${greet}\n\n${hook ? `${hook}. ` : ""}${lead.projectAssumed ? `For ${project}` : `With ${project} at the ${stage} stage`}, this is when ${names} ${focus.length > 1 ? "are" : "is"} usually specified.\n\n${capability}\n\nWould a 20-minute walkthrough at ${centre} be useful next week? We can bring options matched to your material palette.\n\nRegards,\n${sign}`;
+    } else if (tp.touchNumber === 2) {
+      subject = `Specification sheet: ${names}`.slice(0, 60);
+      body = `${greet}\n\nFollowing my earlier note, I've prepared a one-page specification sheet for ${project}: the recommended ${names} systems, typical lead times and the order-by dates that keep the programme on track.\n\n${lead.segment === "developer" ? "It is laid out so your procurement team can compare it directly against current vendors." : "It is laid out to drop straight into your material schedule."}\n\nShall I walk you through it at ${centre}, or send it along with a sample kit?\n\nRegards,\n${sign}`;
+    } else {
+      subject = `Before ${lead1?.name || "the next package"} is specified`.slice(0, 60);
+      body = `${greet}\n\n${lead.projectAssumed ? "As your current projects move forward" : `As ${project} moves towards its next stage`}, ${names} ${focus.length > 1 ? "are" : "is"} typically specified next. Locking ${focus.length > 1 ? "them" : "it"} in early avoids lead-time pressure on site.\n\nIf useful, the ${lead1?.name || "AllHome"} team can start with ${service} this week.\n\nRegards,\n${sign}`;
+    }
+  } else if (tp.channel === "whatsapp") {
+    const g = lead.contactUnknown ? `Hello team at ${lead.companyName},` : `Hi ${firstName(lead.contactName)},`;
+    if (tp.touchNumber === 1) {
+      body = `${g} this is ${ctx.senderName} from AllHome. ${hook ? `${hook}. ` : ""}\n\n${lead1 ? lead1.pitch : capability}\n\nWould you like to see the options at ${centre}, or shall I send a sample kit?`;
+    } else if (tp.touchNumber === 2) {
+      body = `${g} sharing a one-page specification sheet for ${project} — ${names} with lead times and order-by dates. Happy to walk you through it at ${centre} whenever convenient.`;
+    } else {
+      body = `${g} ${lead.projectAssumed ? "as your projects move ahead" : `${project} is approaching the stage`} where ${names} ${focus.length > 1 ? "are" : "is"} usually specified. The ${lead1?.name || "AllHome"} team can start with ${service} — shall I set that up?`;
+    }
   } else {
-    body = response.trim();
+    const g = lead.contactUnknown ? `Hello ${lead.companyName} team —` : `Hi ${firstName(lead.contactName)} —`;
+    if (tp.touchNumber === 1) body = `${g} ${hook ? `${hook}. ` : ""}${lead1 ? `${lead1.name}: ${lead1.facts[0]}.` : ""} Open to a short look at options for ${project}?`;
+    else if (tp.touchNumber === 2) body = `${g} I've put together a one-page spec sheet (${names}, lead times, order-by dates) for ${project}. Shall I send it over?`;
+    else body = `${g} ${names} usually gets specified at the next stage — happy to help lock it in early with ${service}.`;
   }
 
-  // Trim to max length
-  const maxLen = CHANNEL_GUIDES[channel].maxLength;
-  if (body.length > maxLen * 1.5) {
-    body = body.slice(0, maxLen) + "...";
+  return { touchNumber: tp.touchNumber, channel: tp.channel, subject, body: body.replace(/ {2,}/g, " ").trim(), preview: body.slice(0, 100), groundedIn: grounded };
+}
+
+// ─── LLM drafting ───
+
+function plain(t: string): string {
+  return t
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^\s*\*\*\s*|\s*\*\*\s*$/g, "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-*•]\s+/gm, "")
+    .trim();
+}
+
+async function llmTouch(lead: EnrichedLead, strategy: OutreachStrategy, persona: PersonaProfile, signals: SignalBundle, tp: TouchPoint, ctx: ContentCtx): Promise<TouchContent> {
+  const rules = CHANNEL_RULES[tp.channel];
+  const prompt = `${groundingPack(lead, signals, persona, strategy, tp, ctx)}
+
+## Task
+${PURPOSE[tp.touchNumber]}
+Channel: ${rules.rules}
+Write it now.`;
+  const out = await llmGenerateText(SYSTEM, prompt);
+  const m = out.match(/\{[\s\S]*\}/);
+  let subject: string | undefined;
+  let body = out;
+  let groundedIn: string[] = [];
+  if (m) {
+    try {
+      const p = JSON.parse(m[0]) as { subject?: string | null; body?: string; groundedIn?: string[] };
+      body = p.body || "";
+      subject = p.subject || undefined;
+      groundedIn = Array.isArray(p.groundedIn) ? p.groundedIn.map(String).slice(0, 5) : [];
+    } catch {
+      /* use raw text */
+    }
   }
-
-  return {
-    touchNumber,
-    channel,
-    subject,
-    body,
-    preview: body.slice(0, 100),
-  };
+  body = enforceSignOff(plain(body).replace(/\p{Extended_Pictographic}\uFE0F?/gu, "").replace(/ {2,}/g, " "), tp.channel, ctx);
+  subject = tp.channel === "email" ? plain(subject || "").slice(0, 70) || undefined : undefined;
+  if (!body || body.length < 40) throw new Error("empty or too-short LLM draft");
+  if (BANNED.some((b) => body.toLowerCase().includes(b.toLowerCase()))) throw new Error("draft used a banned phrase");
+  if (body.length > rules.maxLength * 1.4) throw new Error("draft too long for channel");
+  return { touchNumber: tp.touchNumber, channel: tp.channel, subject, body, preview: body.slice(0, 100), groundedIn };
 }
 
-// ─── LinkedIn Post + Headline (bonus content for visibility) ───
+// ─── Spec sheet ───
 
-async function generateLinkedInPost(
-  lead: EnrichedLead,
-  signals: SignalBundle,
-  persona: PersonaProfile
-): Promise<string> {
-  const systemPrompt = `You are a LinkedIn thought-leadership ghostwriter. Write posts that get engagement from B2B decision-makers. Posts should be 150-200 words, use short paragraphs, and end with a question or CTA.`;
-
-  const prompt = `Write a LinkedIn post that would resonate with ${lead.contactTitle}s in the ${lead.industry || "tech"} industry. Topic should relate to: ${signals.topSignal?.title || "industry trends"}. The reader is a ${persona.archetypeLabel} archetype who values ${persona.traits.slice(0, 2).join(" and ")}.
-
-Write as if YOU are posting (first person). The post should position the reader's company type as innovative. Do NOT mention any specific product or company name. Keep it to 150-200 words.`;
-
-  return llmGenerateText(systemPrompt, prompt);
-}
-
-async function generateHeadlineSuggestion(
-  lead: EnrichedLead,
-  persona: PersonaProfile
-): Promise<string> {
-  const systemPrompt = `You suggest LinkedIn headline improvements for B2B professionals. Headlines should be value-oriented, specific, and under 120 characters.`;
-
-  const prompt = `Suggest a LinkedIn headline for someone who wants to appeal to ${persona.archetypeLabel} personas like ${lead.contactTitle}s. Current context: selling to ${lead.industry || "technology"} companies. Return ONLY the headline text, nothing else.`;
-
-  return llmGenerateText(systemPrompt, prompt);
-}
-
-// ─── Simulation Fallback ───
-
-function simulateContent(
-  lead: EnrichedLead,
-  strategy: OutreachStrategy,
-  persona: PersonaProfile,
-  intent: IntentScore,
-  signals: SignalBundle
-): GeneratedContent {
-  // Extract signal context for personalization
-  const topSignalRef = signals.topSignal
-    ? `${signals.topSignal.title}`
-    : `${lead.companyName}'s growth in ${lead.industry || "the market"}`;
-  const techRef = lead.techStack?.length
-    ? `your ${lead.techStack.slice(0, 2).join("/")} stack`
-    : "your engineering infrastructure";
-  const fundingRef = lead.fundingStage && lead.fundingAmount
-    ? `${lead.fundingStage} (${lead.fundingAmount})`
-    : lead.fundingStage || "growth stage";
-
-  const touches: TouchContent[] = strategy.cadence.map((tp) => {
-    const isEmail = tp.channel === "email";
-    const isLinkedIn = tp.channel === "linkedin_dm";
-
-    const templates: Record<string, Record<number, { subject?: string; body: string }>> = {
-      email: {
-        1: {
-          subject: `${topSignalRef} — a thought for ${lead.contactTitle}s`,
-          body: `Hi ${lead.contactName},\n\nI was reading about ${topSignalRef} and it got me thinking about ${lead.companyName}'s trajectory.${lead.companySize ? ` As a ${lead.companySize}-person ${lead.industry || "tech"} company` : ""} at the ${fundingRef} stage, you're likely navigating the challenge of scaling ${persona.archetype === "practitioner" ? techRef : persona.archetype === "strategic_executive" ? "revenue operations" : "your go-to-market motion"} without losing the agility that got you here.\n\n${persona.archetype === "strategic_executive" ? `As ${lead.contactTitle}, you probably see this from the ROI lens — every tool needs to demonstrably move the needle on revenue or efficiency.` : persona.archetype === "practitioner" ? `As ${lead.contactTitle}, you likely care most about whether a solution actually solves the specific pain or just adds another dashboard to ignore.` : persona.archetype === "innovator" ? `As ${lead.contactTitle}, you're probably thinking about how to leapfrog the competition rather than just keeping pace.` : `As ${lead.contactTitle}, I imagine building the right partnerships is key to scaling ${lead.companyName}'s reach.`}\n\nI have a specific angle on this — would it be worth 15 minutes this ${new Date().getDay() <= 2 ? "Thursday" : "Tuesday"}?\n\nBest,\nAlex`,
-        },
-        2: {
-          subject: `Re: Quick data point for ${lead.companyName}`,
-          body: `Hi ${lead.contactName},\n\nFollowing up with something concrete — ${lead.industry || "technology"} companies at the ${fundingRef} stage that optimized their outreach approach saw:\n\n• 40% higher response rates from ${lead.seniority || "senior"}-level decision-makers\n• 3x pipeline velocity in the first quarter\n• 60% reduction in time-to-meeting\n\nI mapped out how this applies specifically to ${lead.companyName}'s ${lead.companySize ? lead.companySize + "-person team" : "team"} — happy to share in a 10-minute walkthrough.\n\n${persona.archetype === "practitioner" ? "No fluff, just the data and a technical demo." : persona.archetype === "strategic_executive" ? "I'll focus strictly on the business impact numbers." : "Happy to keep it casual — just a conversation."}\n\nCheers,\nAlex`,
-        },
-        3: {
-          subject: `Closing the loop — ${lead.contactName}`,
-          body: `Hi ${lead.contactName},\n\nLast note from me — I genuinely believe there's a fit between what we're building and where ${lead.companyName} is headed${lead.industry ? ` in ${lead.industry}` : ""}, but I also respect your time.\n\n${persona.archetype === "strategic_executive" ? "If this quarter isn't right, I'd be happy to reconnect when it makes sense strategically." : persona.archetype === "practitioner" ? "If you'd rather see a technical deep-dive first, I can send over documentation instead." : "If the timing isn't ideal, completely understood — the door is always open."}\n\nEither way, here's my calendar if you'd like to chat: calendly.com/nerve-demo\n\nWishing ${lead.companyName} continued momentum.\n\nBest,\nAlex`,
-        },
-      },
-      linkedin_dm: {
-        1: { body: `Hey ${lead.contactName} 👋 Noticed ${topSignalRef}${lead.companySize ? ` — scaling a ${lead.companySize}-person ${lead.industry || "tech"} team is no joke` : ""}. ${persona.archetype === "strategic_executive" ? `As ${lead.contactTitle}, curious how you're thinking about the ROI on outreach as ${lead.companyName} grows.` : persona.archetype === "practitioner" ? `As a fellow ${lead.industry || "tech"} person, your team's approach with ${techRef} caught my eye.` : `Love what ${lead.companyName} is building.`} Mind if I share a quick insight?` },
-        2: { body: `Hi ${lead.contactName}, quick follow-up — found a data point specific to ${lead.industry || "your space"} at the ${fundingRef} stage that I think ${lead.companyName} would find useful. Worth a 5-min look?` },
-        3: { body: `${lead.contactName} — last ping! 😄 Happy to connect whenever timing is right for ${lead.companyName}. No pressure either way.` },
-      },
-      whatsapp: {
-        1: { body: `Hi ${lead.contactName}! 👋\n\nSaw ${topSignalRef} — impressive moves at ${lead.companyName}.\n\nHave a ${lead.industry || "market"}-specific insight for ${lead.contactTitle}s.\n\nQuick chat this week?` },
-        2: { body: `Hey ${lead.contactName} 👋\n\nPut together a brief ${lead.industry || "market"} analysis for ${lead.companyName}.\n\n${persona.archetype === "practitioner" ? "Technical deep-dive, no fluff." : "5 mins, pure value."}\n\nWorth a look?` },
-        3: { body: `Hi ${lead.contactName} — final note! 🙏\n\nOpen to connecting whenever works for ${lead.companyName}.\n\nCalendly: calendly.com/nerve-demo` },
-      },
-    };
-
-    const channelKey = tp.channel === "linkedin_dm" ? "linkedin_dm" : tp.channel;
-    const template = templates[channelKey]?.[tp.touchNumber] || { body: `Hi ${lead.contactName}, reaching out regarding ${lead.companyName}'s ${lead.industry || "growth"} trajectory.` };
-
-    return {
-      touchNumber: tp.touchNumber,
-      channel: tp.channel,
-      subject: template.subject,
-      body: template.body,
-      preview: template.body.slice(0, 100),
-    };
+function buildSpecSheet(lead: EnrichedLead, strategy: OutreachStrategy): string {
+  const b = strategy.bundle;
+  const rows = (b?.items || []).map((i) => {
+    const brand = getBrand(i.brandId);
+    const radar = strategy.radar?.find((r) => r.brandId === i.brandId);
+    const when = radar?.status === "now" ? "Specify now" : radar?.status === "upcoming" ? `In ~${radar.weeksUntil} wks` : "Add-on";
+    const orderBy = radar?.orderBy ? new Date(radar.orderBy).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+    return `| ${i.brandName} | ${(brand?.productLines || []).slice(0, 3).join(", ")} | ${brand?.facts[0] || ""} | ${when} | ~${brand?.leadTimeWeeks ?? "—"} wks | ${orderBy} | ${i.centre ? i.centre.centre.city : "—"} |`;
   });
-
-  // Industry-specific LinkedIn post
-  const industryInsights: Record<string, string> = {
-    "FinTech": "Payment infrastructure is becoming a strategic moat, not just plumbing.\n\nThe companies winning in FinTech right now aren't just processing transactions faster — they're turning payment data into predictive intelligence.",
-    "SaaS": "The SaaS growth playbook from 2020 is dead.\n\nProduct-led growth alone isn't enough anymore. The winners are combining PLG with AI-driven outbound that feels hand-crafted.",
-    "HealthTech": "Healthcare's digital transformation isn't coming — it's here.\n\nBut most HealthTech teams are building 2024 solutions for 2026 problems. The gap? Real-time data unification.",
-    "EdTech": "The future of education isn't just online — it's personalized at scale.\n\nThe EdTech companies winning aren't those with the most content. They're the ones with the best learning intelligence.",
-    "DevTools": "Developer experience is the new competitive advantage.\n\nEvery minute a developer spends fighting tooling is a minute they're not shipping value. The DevTools companies understand this.",
-    "AI/ML": "The AI hype cycle is maturing into the AI value cycle.\n\nThe companies that will win aren't those with the biggest models — they're the ones solving specific, painful problems for specific users.",
-  };
-
-  const matchedIndustry = Object.keys(industryInsights).find(
-    (k) => (lead.industry || "").toLowerCase().includes(k.toLowerCase())
-  );
-  const industryHook = matchedIndustry
-    ? industryInsights[matchedIndustry]
-    : `The ${lead.industry || "B2B"} landscape is shifting faster than most teams can adapt.\n\nThe companies pulling ahead aren't just iterating — they're rethinking their entire approach to growth.`;
-
-  return {
-    leadId: lead.id,
-    touches,
-    linkedinPost: `🚀 ${industryHook}\n\nHere's what I'm seeing across ${lead.industry || "B2B"} companies at the ${fundingRef} stage:\n\n1. Personalization at scale is table stakes, not a differentiator\n2. Multi-channel outreach (${strategy.primaryChannel}${strategy.secondaryChannel ? " + " + strategy.secondaryChannel : ""}) outperforms single-channel by 3x\n3. Signal-driven timing beats scheduled cadences every time\n\nThe teams I see winning? They treat outreach like a product — with iteration, measurement, and user empathy.\n\nWhat's the biggest shift you've seen in how ${lead.industry || "B2B"} buyers want to be reached?\n\n#${(lead.industry || "B2B").replace(/[^a-zA-Z]/g, "")} #SalesStrategy #AI #Outreach`,
-    linkedinHeadlineSuggestion: `Helping ${lead.industry || "B2B"} teams at ${lead.companySize || "growth-stage"} companies turn cold outreach into warm conversations | AI-Powered ${persona.archetype === "practitioner" ? "Technical Sales" : "Revenue Intelligence"}`,
-    generatedAt: new Date().toISOString(),
-  };
+  return [
+    `# AllHome Specification Sheet — ${lead.projectName || lead.companyName}`,
+    ``,
+    `**Prepared for:** ${lead.contactUnknown ? lead.companyName : `${lead.contactName}${lead.contactTitle ? `, ${lead.contactTitle}` : ""} · ${lead.companyName}`}`,
+    `**Project:** ${lead.projectAssumed ? "Details to be confirmed" : `${lead.projectType ? PROJECT_TYPES[lead.projectType] : "Premium project"} · ${lead.projectCity || ""}${lead.projectValue ? ` · ${lead.projectValue}` : ""} · Stage: ${STAGES[stageIndex(lead.projectStage || "design")].label}`}`,
+    ``,
+    `| Brand | Recommended systems | Proof point | Window | Lead time* | Order by* | Nearest centre |`,
+    `|---|---|---|---|---|---|---|`,
+    ...rows,
+    ``,
+    `**Why one collective:** ${b?.vendorsReplaced || rows.length} categories through one AllHome relationship — consistent finishes, coordinated delivery and a single point of after-sales.`,
+    strategy.experienceCentre ? `**Visit:** ${strategy.experienceCentre.brandName} — ${strategy.experienceCentre.centre.address}` : "",
+    `*Lead times and order-by dates are planning estimates — confirm with the brand team.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-// ─── Main Agent Function ───
+// ─── Main ───
 
 export async function runContentForgeAgent(
   lead: EnrichedLead,
   signals: SignalBundle,
   intent: IntentScore,
   persona: PersonaProfile,
-  strategy: OutreachStrategy
+  strategy: OutreachStrategy,
+  ctx: ContentCtx = { senderName: "AllHome Specifier Desk", senderTitle: "Specification Partner, AllHome" }
 ): Promise<GeneratedContent> {
-  const startTime = Date.now();
-
+  const start = Date.now();
   sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "running");
-
   try {
-    let content: GeneratedContent;
-
-    // Check if LLM key is available — don't waste a test call
-    const hasLlmKey = !!(config.groqApiKey && config.groqApiKey.length > 10);
-    const isSimulated = !hasLlmKey || config.simulationMode;
-
-    if (isSimulated) {
-      // Use rich template-based simulation
-      content = simulateContent(lead, strategy, persona, intent, signals);
-    } else {
-      // Generate real content with Groq (Llama 3.3 70B)
-      const touchPromises = strategy.cadence.map((tp) =>
-        generateTouchContent(lead, signals, intent, persona, strategy, tp.touchNumber, tp.channel)
-      );
-
-      const [touches, linkedinPost, headlineSuggestion] = await Promise.all([
-        Promise.all(touchPromises),
-        generateLinkedInPost(lead, signals, persona).catch(() => undefined),
-        generateHeadlineSuggestion(lead, persona).catch(() => undefined),
-      ]);
-
-      content = {
-        leadId: lead.id,
-        touches,
-        linkedinPost: linkedinPost || undefined,
-        linkedinHeadlineSuggestion: headlineSuggestion || undefined,
-        generatedAt: new Date().toISOString(),
-      };
+    const useLLM = llmEnabled();
+    const touches: TouchContent[] = [];
+    // Sequential: keeps within free-tier rate limits and lets each touch be checked on its own
+    for (const tp of strategy.cadence) {
+      const fallback = templateTouch(lead, strategy, persona, signals, tp, ctx);
+      if (!useLLM) {
+        touches.push(fallback);
+        continue;
+      }
+      try {
+        touches.push(await llmTouch(lead, strategy, persona, signals, tp, ctx));
+      } catch (err) {
+        console.warn(`[Agent 6] LLM draft rejected for touch ${tp.touchNumber}, using template:`, String(err).slice(0, 160));
+        touches.push(fallback);
+      }
     }
 
-    // Persist each touch to DB
-    for (const touch of content.touches) {
-      await generatedContentCol().insertOne({
-        _id: nanoid(),
-        leadId: lead.id,
-        touchNumber: touch.touchNumber,
-        channel: touch.channel,
-        subject: touch.subject || null,
-        body: touch.body,
-        preview: touch.preview,
-        generatedAt: content.generatedAt,
-      });
+    const focusNames = joinNames((strategy.bundle?.items || []).filter((i) => i.role === "primary").map((i) => i.brandName));
+    const content: GeneratedContent = {
+      leadId: lead.id,
+      touches,
+      specSheet: buildSpecSheet(lead, strategy),
+      linkedinPost: `On ${lead.projectType ? PROJECT_TYPES[lead.projectType].toLowerCase() : "premium"} projects, the facade, windows, lighting, bath and finishes are usually sourced from separate vendors — and design intent erodes at every hand-off.\n\nAt the ${stageLabel(lead)} stage, specifying ${focusNames} together keeps one palette, one schedule and one point of after-sales.\n\nWhich category is hardest for you to coordinate on site?`,
+      linkedinHeadlineSuggestion: `Specification partner for architects & designers — ${focusNames} | AllHome`,
+      generatedAt: new Date().toISOString(),
+    };
+
+    if (touches.length) {
+      await generatedContentCol().insertMany(touches.map((t) => ({ _id: nanoid(), leadId: lead.id, ...t, subject: t.subject || null, generatedAt: content.generatedAt })));
     }
 
-    const durationMs = Date.now() - startTime;
-    const summary = `${content.touches.length} touches generated | ${content.touches.map((t) => `T${t.touchNumber}:${t.channel}`).join(", ")}${content.linkedinPost ? " + LI post" : ""}`;
-
+    const summary = `${touches.length} touches (${touches.map((t) => `T${t.touchNumber}:${t.channel}`).join(", ")}) + spec sheet${useLLM ? " · LLM, grounded" : " · templates"}`;
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("content_update", lead.id, content);
-
-    console.log(`✅ Agent 6 complete in ${durationMs}ms — ${summary}`);
+    console.log(`✅ Agent 6 complete in ${Date.now() - start}ms — ${summary}`);
     return content;
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Unknown error";
-    sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, errMsg);
+    sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");
     throw error;
   }
 }

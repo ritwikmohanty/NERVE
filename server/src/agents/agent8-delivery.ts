@@ -36,9 +36,10 @@ async function sendViaResend(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "onboarding@resend.dev", // Resend's free-tier verified sender
+        // Verified domain sender, or Resend's test sender (only reaches the account owner)
+        from: process.env.RESEND_FROM || "onboarding@resend.dev",
         to: [toEmail],
-        subject: touch.subject || `Quick note for ${lead.contactName}`,
+        subject: touch.subject || `AllHome × ${lead.companyName}`,
         html: touch.body.replace(/\n/g, "<br>"),
       }),
     });
@@ -206,8 +207,20 @@ async function sendViaAisensy(
   }
 
   try {
-    // AiSensy API: Send template or session message
-    const phone = lead.contactPhone || "";
+    // AiSensy API: business-initiated WhatsApp requires an approved template via an API campaign
+    const campaignName = process.env.AISENSY_CAMPAIGN_NAME;
+    if (!campaignName) {
+      return {
+        leadId: lead.id,
+        touchNumber: touch.touchNumber,
+        channel: "whatsapp",
+        status: "failed",
+        sentAt: now,
+        simulationMode: false,
+        rawApiResponse: { error: "AISENSY_CAMPAIGN_NAME not set — create an API campaign with an approved template in AiSensy" },
+      };
+    }
+    const phone = (lead.contactPhone || "").replace(/[^\d]/g, "");
     if (!phone) {
       return {
         leadId: lead.id,
@@ -227,7 +240,7 @@ async function sendViaAisensy(
       },
       body: JSON.stringify({
         apiKey: config.aisensyApiKey,
-        campaignName: `NERVE-Touch-${touch.touchNumber}-${nanoid(4)}`,
+        campaignName,
         destination: phone,
         userName: lead.contactName,
         templateParams: [touch.body.slice(0, 1024)],
@@ -304,6 +317,12 @@ function simulateDelivery(
       touchNumber,
       simulatedAt: new Date().toISOString(),
       wouldHaveSent: true,
+      howToSendForReal:
+        channel === "email"
+          ? "Add a Resend API key and a verified sending domain (RESEND_FROM)"
+          : channel === "whatsapp"
+            ? "Add an AiSensy API key and an API campaign with a Meta-approved template (AISENSY_CAMPAIGN_NAME)"
+            : "Add a HeyReach API key, connect a LinkedIn account and create a campaign",
       estimatedDeliveryTime: channel === "email" ? "< 30 seconds" : channel === "whatsapp" ? "< 5 seconds" : "Queued for next LinkedIn session window",
       provider: channel === "email" ? "Resend" : channel === "linkedin_dm" ? "HeyReach" : "AiSensy",
     },

@@ -1,6 +1,8 @@
 import { nanoid } from "nanoid";
 import { strategiesCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
+import { buildBundle, buildRadar } from "../allhome/bundler.js";
+import { bestCentreForBrands, SEGMENTS, STAGES, stageIndex } from "../allhome/catalog.js";
 import type {
   EnrichedLead,
   SignalBundle,
@@ -16,287 +18,178 @@ import type {
 const AGENT_NUMBER = 5;
 const AGENT_NAME = "Strategy Commander";
 
-// ─── Channel Selection Logic ───
-
-function selectPrimaryChannel(
-  lead: EnrichedLead,
-  signals: SignalBundle,
-  intent: IntentScore,
-  persona: PersonaProfile
-): { primary: OutreachChannel; secondary?: OutreachChannel; decisions: StrategyDecision[] } {
-  const decisions: StrategyDecision[] = [];
-
-  // 1. LinkedIn priority: recent LinkedIn activity or C-level persona
-  const hasLinkedIn = !!lead.contactLinkedIn;
-  const linkedInActive = signals.linkedinActivityScore > 40;
-  const isExecutive = persona.archetype === "strategic_executive";
-
-  // 2. Email priority: verified email available
+function selectChannels(lead: EnrichedLead, signals: SignalBundle, intent: IntentScore): { primary: OutreachChannel; secondary?: OutreachChannel; decision: StrategyDecision } {
+  const seg = lead.segment || "architect";
+  const hasPhone = !!lead.contactPhone;
   const hasEmail = !!lead.contactEmail;
-
-  // 3. WhatsApp priority: India-based + HOT lead
-  const isIndia = (lead.headquarters || "").toLowerCase().includes("india") ||
-    (lead.headquarters || "").toLowerCase().includes("bangalore") ||
-    (lead.headquarters || "").toLowerCase().includes("mumbai") ||
-    (lead.headquarters || "").toLowerCase().includes("delhi") ||
-    (lead.headquarters || "").toLowerCase().includes("hyderabad");
-  const isHot = intent.tier === "HOT";
-
+  const hasLinkedIn = !!lead.contactLinkedIn;
   let primary: OutreachChannel;
   let secondary: OutreachChannel | undefined;
+  let reasoning: string;
 
-  // Decision tree
-  if (hasLinkedIn && linkedInActive && isExecutive) {
-    primary = "linkedin_dm";
-    secondary = hasEmail ? "email" : undefined;
-    decisions.push({
-      decision: "LinkedIn DM as primary channel",
-      reasoning: `${lead.contactName} (${lead.contactTitle}) is a ${persona.archetypeLabel} with active LinkedIn presence (score: ${signals.linkedinActivityScore}/100). LinkedIn DMs have 3x higher open rates for ${lead.seniority || "senior"}-level executives compared to cold email.`,
-      factors: [`LinkedIn activity: ${signals.linkedinActivityScore}/100`, `Persona: ${persona.archetypeLabel}`, `Profile: ${lead.contactLinkedIn || "found"}`, `Email ${hasEmail ? lead.contactEmail : "not available"} as backup`],
-    });
-  } else if (isIndia && isHot) {
+  if ((seg === "architect" || seg === "id_firm" || seg === "contractor" || seg === "homeowner") && hasPhone) {
     primary = "whatsapp";
     secondary = hasEmail ? "email" : hasLinkedIn ? "linkedin_dm" : undefined;
-    decisions.push({
-      decision: "WhatsApp as primary channel",
-      reasoning: `${lead.contactName} is based in ${lead.headquarters || "India"} and scored ${intent.compositeScore}/100 (HOT). WhatsApp has 95%+ open rates in India — ideal for high-urgency outreach to ${lead.contactTitle}s in the ${lead.industry || "tech"} space.`,
-      factors: [`Location: ${lead.headquarters}`, `Intent score: ${intent.compositeScore}/100 (HOT)`, `Phone: ${lead.contactPhone || "available"}`, `Industry: ${lead.industry || "technology"}`],
-    });
-  } else if (hasEmail) {
+    reasoning = `${SEGMENTS[seg].label}s in India run projects on WhatsApp — sharing finish photos and site updates there is the norm, and it's where a quick "can we send samples?" gets answered.`;
+  } else if (seg === "developer" && hasEmail) {
     primary = "email";
-    secondary = hasLinkedIn ? "linkedin_dm" : undefined;
-    decisions.push({
-      decision: "Email as primary channel",
-      reasoning: `${lead.contactEmail} is verified for ${lead.contactName}. Email enables rich content delivery with tracking — ideal for the ${persona.preferredTone} approach needed for ${persona.archetypeLabel} personas at ${lead.companyName}.`,
-      factors: [`Email: ${lead.contactEmail}`, `Persona: ${persona.archetypeLabel}`, hasLinkedIn ? `LinkedIn backup: ${lead.contactLinkedIn}` : "No LinkedIn profile found", `Company: ${lead.companyName} (${lead.companySize || "unknown"} employees)`],
-    });
-  } else if (hasLinkedIn) {
+    secondary = hasLinkedIn ? "linkedin_dm" : hasPhone ? "whatsapp" : undefined;
+    reasoning = `Developer procurement teams evaluate vendors over email (pricing, lead times, spec sheets get forwarded internally). LinkedIn reaches the project director as a second touch.`;
+  } else if (hasLinkedIn && signals.linkedinActivityScore > 60) {
     primary = "linkedin_dm";
-    secondary = undefined;
-    decisions.push({
-      decision: "LinkedIn DM as primary (only available channel)",
-      reasoning: "No verified email — LinkedIn is the only reachable channel",
-      factors: ["No email available", "Has LinkedIn profile"],
-    });
+    secondary = hasEmail ? "email" : undefined;
+    reasoning = `${lead.contactName} is active on LinkedIn (${signals.linkedinActivityScore}/100) — a DM referencing their published work lands well.`;
+  } else if (!hasEmail && !hasPhone && !hasLinkedIn) {
+    primary = seg === "developer" ? "email" : "whatsapp";
+    secondary = seg === "developer" ? "linkedin_dm" : "email";
+    reasoning = `No verified contact details are available for ${lead.companyName} yet (they are never guessed). The drafts are ready — add the principal's ${primary === "whatsapp" ? "WhatsApp number" : "email"} to send them.`;
   } else {
-    primary = "email";
-    decisions.push({
-      decision: "Email as fallback primary",
-      reasoning: "Limited contact info — email is the most reliable default",
-      factors: ["No LinkedIn found", "Using company domain for outreach"],
-    });
+    primary = hasEmail ? "email" : "whatsapp";
+    secondary = undefined;
+    reasoning = "Best available channel given the contact data.";
   }
 
-  return { primary, secondary, decisions };
+  return {
+    primary,
+    secondary,
+    decision: {
+      decision: `${primary.replace(/_/g, " ")} as primary${secondary ? `, ${secondary.replace(/_/g, " ")} as follow-up` : ""}`,
+      reasoning,
+      factors: [`Segment: ${SEGMENTS[seg].label}`, `Intent: ${intent.tier} (${intent.compositeScore}/100)`, hasPhone ? "WhatsApp-reachable" : "No phone", hasEmail ? "Email available" : "No email"],
+    },
+  };
 }
 
-// ─── Tone Framework Selection ───
-
-function selectToneFramework(
-  persona: PersonaProfile,
-  intent: IntentScore
-): { tone: ToneFramework; decision: StrategyDecision } {
-  const toneMap: Record<string, ToneFramework> = {
-    strategic_executive: "insight_led",
-    practitioner: "peer_problem",
-    innovator: "challenger",
-    networker: "relationship_first",
+function selectTone(persona: PersonaProfile, intent: IntentScore): { tone: ToneFramework; decision: StrategyDecision } {
+  const map: Record<string, ToneFramework> = {
+    design_architect: "insight_led",
+    aesthetic_designer: "relationship_first",
+    developer_buyer: "insight_led",
+    execution_contractor: "peer_problem",
+    premium_homeowner: "relationship_first",
   };
-
-  let tone = toneMap[persona.archetype] || "insight_led";
-
-  // Override: HOT leads with urgency signals get growth_urgency
-  if (intent.tier === "HOT" && intent.compositeScore >= 85) {
-    tone = "growth_urgency";
-  }
-
-  const toneLabels: Record<ToneFramework, string> = {
-    insight_led: "Insight-Led (data, ROI, strategic value)",
-    peer_problem: "Peer Problem (technical empathy, problem-specific)",
-    challenger: "Challenger (question status quo, bold vision)",
-    relationship_first: "Relationship-First (mutual value, low-pressure)",
-    growth_urgency: "Growth Urgency (time-sensitive opportunity)",
-  };
-
+  let tone = map[persona.archetype] || "insight_led";
+  if (intent.tier === "HOT" && intent.compositeScore >= 88) tone = "growth_urgency";
   return {
     tone,
     decision: {
-      decision: `Tone: ${toneLabels[tone]}`,
-      reasoning: `Based on ${persona.archetypeLabel} persona (${Math.round(persona.confidence * 100)}% confidence) and ${intent.tier} intent`,
-      factors: [
-        `Persona: ${persona.archetypeLabel}`,
-        `Intent: ${intent.tier} (${intent.compositeScore}/100)`,
-        `Preferred tone: ${persona.preferredTone}`,
-      ],
+      decision: `Tone: ${tone.replace(/_/g, " ")}`,
+      reasoning: `${persona.archetypeLabel} persona → ${persona.preferredTone}`,
+      factors: [`Persona: ${persona.archetypeLabel}`, `Intent: ${intent.tier}`, `Avoid: ${persona.avoidInMessaging.slice(0, 2).join(", ")}`],
     },
   };
 }
 
-// ─── Timing & Cadence Logic ───
-
-function buildCadence(
-  lead: EnrichedLead,
-  primary: OutreachChannel,
-  secondary: OutreachChannel | undefined,
-  tone: ToneFramework,
-  intent: IntentScore
-): { cadence: TouchPoint[]; sendTimestamp: string; timezone: string; decision: StrategyDecision } {
-  // Determine timezone from headquarters
-  const hq = (lead.headquarters || "").toLowerCase();
-  let timezone = "America/New_York"; // default
-  let offsetHours = -4;
-
-  if (hq.includes("india") || hq.includes("bangalore") || hq.includes("mumbai") || hq.includes("delhi") || hq.includes("hyderabad")) {
-    timezone = "Asia/Kolkata";
-    offsetHours = 5.5;
-  } else if (hq.includes("london") || hq.includes("uk")) {
-    timezone = "Europe/London";
-    offsetHours = 1;
-  } else if (hq.includes("berlin") || hq.includes("germany") || hq.includes("europe")) {
-    timezone = "Europe/Berlin";
-    offsetHours = 2;
-  } else if (hq.includes("singapore") || hq.includes("asia")) {
-    timezone = "Asia/Singapore";
-    offsetHours = 8;
-  } else if (hq.includes("san francisco") || hq.includes("sf") || hq.includes("california")) {
-    timezone = "America/Los_Angeles";
-    offsetHours = -7;
-  }
-
-  // Optimal send time: Tuesday 9:30 AM local time
-  const now = new Date();
-  const currentDay = now.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, ..., 6=Sat
-  let daysUntilTuesday = (2 - currentDay + 7) % 7; // Next Tuesday (day 2)
-  if (daysUntilTuesday === 0) daysUntilTuesday = 7; // If today is Tuesday, schedule for next Tuesday
-
-  const sendDate = new Date(now);
-  sendDate.setUTCDate(sendDate.getUTCDate() + daysUntilTuesday);
-  sendDate.setUTCHours(9 - offsetHours, 30, 0, 0); // 9:30 AM local
-
-  const sendTimestamp = sendDate.toISOString();
-
-  // Cadence intervals based on intent tier
-  const intervals: Record<string, [number, number, number]> = {
-    HOT: [0, 2, 5],      // Aggressive: Touch 1, +2 days, +5 days
-    WARM: [0, 3, 7],     // Moderate
-    COOL: [0, 5, 12],    // Patient
-    COLD: [0, 7, 14],    // Very patient
-  };
-
-  const [d1, d2, d3] = intervals[intent.tier] || intervals.WARM;
-
-  // Build 3-touch cadence with channel variation
-  const touch1Date = new Date(sendDate);
-  const touch2Date = new Date(sendDate);
-  touch2Date.setUTCDate(touch2Date.getUTCDate() + d2);
-  const touch3Date = new Date(sendDate);
-  touch3Date.setUTCDate(touch3Date.getUTCDate() + d3);
-
-  const cadence: TouchPoint[] = [
-    {
-      touchNumber: 1,
-      channel: primary,
-      scheduledAt: touch1Date.toISOString(),
-      dayOffset: d1,
-      toneFramework: tone,
-    },
-    {
-      touchNumber: 2,
-      channel: secondary || primary, // Switch channel if available
-      scheduledAt: touch2Date.toISOString(),
-      dayOffset: d2,
-      toneFramework: tone,
-    },
-    {
-      touchNumber: 3,
-      channel: primary, // Return to primary for final touch
-      scheduledAt: touch3Date.toISOString(),
-      dayOffset: d3,
-      toneFramework: tone,
-    },
-  ];
-
-  return {
-    cadence,
-    sendTimestamp,
-    timezone,
-    decision: {
-      decision: `3-touch cadence over ${d3} days (${intent.tier} tempo)`,
-      reasoning: `${intent.tier} leads need ${intent.tier === "HOT" ? "aggressive" : "measured"} follow-up pacing`,
-      factors: [
-        `Touch 1: ${primary} Day 0`,
-        `Touch 2: ${secondary || primary} Day +${d2}`,
-        `Touch 3: ${primary} Day +${d3}`,
-        `Timezone: ${timezone}`,
-        `First send: ${sendTimestamp}`,
-      ],
-    },
-  };
+/** Next Tuesday/Thursday at 10:30 IST — mid-morning, after site visits start, before lunch. */
+function firstSendTime(now = new Date()): Date {
+  const d = new Date(now);
+  const day = d.getUTCDay();
+  const add = day < 2 ? 2 - day : day < 4 ? 4 - day : 9 - day; // Tue (2) or Thu (4)
+  d.setUTCDate(d.getUTCDate() + (add === 0 ? 2 : add));
+  d.setUTCHours(0, 10 * 60 + 30 - 330, 0, 0); // 10:30 IST = 05:00 UTC
+  return d;
 }
-
-// ─── Main Agent Function ───
 
 export async function runStrategyCommanderAgent(
   lead: EnrichedLead,
   signals: SignalBundle,
   intent: IntentScore,
-  persona: PersonaProfile
+  persona: PersonaProfile,
+  ctx: { brands?: string[] } = {}
 ): Promise<OutreachStrategy> {
-  const startTime = Date.now();
-
+  const start = Date.now();
   sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "running");
-
   try {
-    // 1. Select channels
-    const { primary, secondary, decisions: channelDecisions } = selectPrimaryChannel(lead, signals, intent, persona);
+    const stage = lead.projectStage || "design";
+    const segment = lead.segment || "architect";
+    const enabledBrands = ctx.brands?.length ? ctx.brands : undefined;
 
-    // 2. Select tone framework
-    const { tone, decision: toneDecision } = selectToneFramework(persona, intent);
+    // F1 + F2 + F3
+    const bundle = buildBundle({ segment, projectType: lead.projectType || "villa", projectStage: stage, city: lead.projectCity, budgetTier: lead.budgetTier, enabledBrands });
+    const radar = buildRadar(stage, enabledBrands);
+    // Prefer a centre in the lead's own city for any brand in the bundle
+    const experienceCentre = bestCentreForBrands(lead.projectCity, bundle.items.map((i) => i.brandId));
 
-    // 3. Build cadence with timing
-    const { cadence, sendTimestamp, timezone, decision: cadenceDecision } = buildCadence(
-      lead, primary, secondary, tone, intent
-    );
+    const { primary, secondary, decision: channelDecision } = selectChannels(lead, signals, intent);
+    const { tone, decision: toneDecision } = selectTone(persona, intent);
 
-    const allDecisions = [...channelDecisions, toneDecision, cadenceDecision];
+    // Stage-timed cadence: T1 now (open windows), T2 short follow-up with spec sheet,
+    // T3 lands just before the next brand's specification window opens.
+    const sendDate = firstSendTime();
+    const followUpDays = intent.tier === "HOT" ? 3 : intent.tier === "WARM" ? 5 : 7;
+    const nextWeeks = bundle.nextBrand?.weeksUntil;
+    const t3Days = nextWeeks !== undefined ? Math.min(120, Math.max(followUpDays + 7, nextWeeks * 7 - 7)) : followUpDays + 9;
+    const at = (days: number) => {
+      const d = new Date(sendDate);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString();
+    };
+    const primaryNames = bundle.items.filter((i) => i.role === "primary").map((i) => i.brandId);
+
+    const cadence: TouchPoint[] = [
+      { touchNumber: 1, channel: primary, scheduledAt: at(0), dayOffset: 0, toneFramework: tone, focusBrands: primaryNames, purpose: "Introduce the bundle for the open specification window" },
+      { touchNumber: 2, channel: secondary || primary, scheduledAt: at(followUpDays), dayOffset: followUpDays, toneFramework: tone, focusBrands: primaryNames, purpose: `Share the spec sheet + invite to ${experienceCentre?.centre.city || "the nearest"} experience centre` },
+      {
+        touchNumber: 3,
+        channel: primary,
+        scheduledAt: at(t3Days),
+        dayOffset: t3Days,
+        toneFramework: tone,
+        focusBrands: bundle.nextBrand ? [bundle.nextBrand.brandId] : primaryNames,
+        purpose: bundle.nextBrand ? `Pre-specify ${bundle.nextBrand.brandName} before its window opens` : "Final check-in",
+      },
+    ];
+
+    const decisions: StrategyDecision[] = [
+      channelDecision,
+      toneDecision,
+      {
+        decision: `Bundle: ${bundle.headline}`,
+        reasoning: bundle.items.map((i) => `${i.brandName} — ${i.reason}`).join(" | "),
+        factors: [`Stage: ${STAGES[stageIndex(stage)].label}`, `${bundle.vendorsReplaced} vendors consolidated into one AllHome relationship`],
+      },
+      {
+        decision: `Stage-timed cadence: Day 0 / +${followUpDays} / +${t3Days}`,
+        reasoning: bundle.nextBrand
+          ? `Touch 3 is timed to land ~1 week before ${bundle.nextBrand.brandName}'s specification window opens (~${bundle.nextBrand.weeksUntil} weeks out)`
+          : "No upcoming brand windows — standard follow-up spacing",
+        factors: cadence.map((c) => `T${c.touchNumber}: ${c.channel} · ${c.focusBrands?.join(", ")}`),
+      },
+      {
+        decision: experienceCentre ? `Invite to ${experienceCentre.brandName} experience centre, ${experienceCentre.centre.city}` : "No experience centre nearby",
+        reasoning: experienceCentre
+          ? experienceCentre.sameCity
+            ? "Same-city centre — touching the finishes converts specifiers far better than PDFs"
+            : `Nearest centre ~${experienceCentre.distanceKm} km away — offer a sample kit plus a visit during their next trip`
+          : "Offer sample kits instead",
+        factors: experienceCentre ? [experienceCentre.centre.address] : [],
+      },
+    ];
 
     const strategy: OutreachStrategy = {
       leadId: lead.id,
       primaryChannel: primary,
       secondaryChannel: secondary,
-      sendTimestamp,
-      timezone,
+      sendTimestamp: sendDate.toISOString(),
+      timezone: "Asia/Kolkata",
       toneFramework: tone,
       cadence,
-      decisions: allDecisions,
+      decisions,
+      bundle,
+      radar,
+      experienceCentre,
       generatedAt: new Date().toISOString(),
     };
 
-    // Persist to DB
-    await strategiesCol().insertOne({
-      _id: nanoid(),
-      leadId: lead.id,
-      primaryChannel: strategy.primaryChannel,
-      secondaryChannel: strategy.secondaryChannel,
-      sendTimestamp: strategy.sendTimestamp,
-      timezone: strategy.timezone,
-      toneFramework: strategy.toneFramework,
-      cadence: JSON.stringify(strategy.cadence),
-      decisions: JSON.stringify(strategy.decisions),
-      generatedAt: strategy.generatedAt,
-    });
+    await strategiesCol().insertOne({ _id: nanoid(), ...strategy, cadence: JSON.stringify(cadence), decisions: JSON.stringify(decisions), bundle: JSON.stringify(bundle) });
 
-    const durationMs = Date.now() - startTime;
-    const summary = `${primary}${secondary ? " + " + secondary : ""} | ${tone} | ${cadence.length}-touch over ${cadence[cadence.length - 1].dayOffset}d`;
-
+    const summary = `${primary}${secondary ? " + " + secondary : ""} | ${bundle.items.map((i) => i.brandName).join(", ")} | T3 at +${t3Days}d`;
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("strategy_update", lead.id, strategy);
-
-    console.log(`✅ Agent 5 complete in ${durationMs}ms — ${summary}`);
+    console.log(`✅ Agent 5 complete in ${Date.now() - start}ms — ${summary}`);
     return strategy;
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Unknown error";
-    sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, errMsg);
+    sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");
     throw error;
   }
 }
