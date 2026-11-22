@@ -1,4 +1,4 @@
-# NERVE — Autonomous Outreach Engine
+# NERVE: Autonomous Outreach Engine
 
 ## AllHome Edition
 
@@ -51,10 +51,10 @@ B2B sales development is a constant battle between quantity and quality. Sales t
 
 NERVE is an autonomous agentic workforce designed to automate the entire B2B outreach process from end to end. It acts as a force multiplier for your sales team, executing the time-consuming research and writing tasks with machine speed and precision.
 
-By connecting a series of specialized AI agents, NERVE transforms a single trigger—like a company name—into a fully executed, hyper-personalized outreach campaign. It finds the lead, scores their intent, identifies the perfect moment to engage, and crafts a unique message based on real-time data.
+By connecting a series of specialized AI agents, NERVE transforms a single trigger (like a company name) into a fully executed, hyper-personalized outreach campaign. It finds the lead, scores their intent, identifies the perfect moment to engage, and crafts a unique message based on real-time data.
 
 This allows your human sales team to focus exclusively on high-value activities: engaging with warm, high-intent leads and closing deals.
-> 10-agent AI pipeline that finds, scores, writes, and delivers B2B outreach — zero human input after trigger.
+> 10-agent AI pipeline that finds, scores, writes, and delivers B2B outreach, with no human input after the trigger.
 
 ```
 Lead Input ──► Agent 1: Lead Ingestion & Enrichment
@@ -98,8 +98,8 @@ Lead Input ──► Agent 1: Lead Ingestion & Enrichment
 |-------|------|
 | Server | Hono v4 + Node.js 20 (ESM) |
 | Database | MongoDB (local) |
-| LLM | Groq — Llama 3.3 70B Versatile (`@ai-sdk/groq`) |
-| Agent Framework | Mastra (`mastra@1.5.0`, `@mastra/core`) — Studio at `:4111` |
+| LLM | Groq: `openai/gpt-oss-120b`, falling back to `openai/gpt-oss-20b` on rate limits (`@ai-sdk/groq`) |
+| Agent Framework | Mastra (`mastra@1.5.0`, `@mastra/core`): Studio at `:4111` |
 | Enrichment | Apollo.io API |
 | Signals | Tavily Search API |
 | Email delivery | Resend |
@@ -112,15 +112,15 @@ Lead Input ──► Agent 1: Lead Ingestion & Enrichment
 
 ## Features
 
-- **Targeted mode** — provide a company name; agents enrich, score, and outreach automatically
-- **Discovery mode** — describe your product; Agent 1 finds and recommends matching companies
-- **Phase-wise pipeline UI** — 7-phase stepper with prev/next navigation and keyboard shortcuts (← →)
-- **Real-time SSE** — watch every agent run live in the browser
-- **Outreach Calendar** — month-view calendar showing all scheduled touchpoints across leads
-- **AI Schedule Assistant** — chatbot (Groq LLM) answers questions about your outreach schedule
-- **Mastra Studio** — visual agent/workflow debugger at `localhost:4111`
-- **Simulate Reply** — test Agent 9 sentiment classification and Agent 10 weight updates from the UI
-- **Learning Loop** — Agent 10 adjusts 9 scoring dimension weights after every outcome
+- **Targeted mode**: provide a company name; agents enrich, score, and outreach automatically
+- **Discovery mode**: describe your product; Agent 1 finds and recommends matching companies
+- **Phase-wise pipeline UI**: 7-phase stepper with prev/next navigation and keyboard shortcuts (← →)
+- **Real-time SSE**: watch every agent run live in the browser
+- **Outreach Calendar**: month-view calendar showing all scheduled touchpoints across leads
+- **AI Schedule Assistant**: chatbot (Groq LLM) answers questions about your outreach schedule
+- **Mastra Studio**: visual agent/workflow debugger at `localhost:4111`
+- **Simulate Reply**: test Agent 9 sentiment classification and Agent 10 weight updates from the UI
+- **Learning Loop**: Agent 10 adjusts 9 scoring dimension weights after every outcome
 
 ---
 
@@ -150,16 +150,16 @@ Optionally edit `server/.env` and add real keys. `CLIENT_URL` must be `http://lo
 ### 3. Run
 
 ```bash
-# Terminal 0 — MongoDB must be running
+# Terminal 0: MongoDB must be running
 brew services start mongodb-community   # or: mongod
 
-# Terminal 1 — Server (from /server)
+# Terminal 1: Server (from /server)
 npm start          # or: npx tsx src/index.ts
 
-# Terminal 2 — Client (from /client)
+# Terminal 2: Client (from /client)
 npm run dev
 
-# Terminal 3 — Mastra Studio (optional, from /server)
+# Terminal 3: Mastra Studio (optional, from /server)
 npx mastra dev
 ```
 
@@ -176,10 +176,10 @@ npx mastra dev
 | Route | Page |
 |-------|------|
 | `/` | Landing page |
-| `/dashboard` | Command Center — all leads with status |
-| `/dashboard/new` | New Mission — targeted or discovery mode form |
-| `/dashboard/autopilot` | Autopilot — trigger-based prospecting, cost estimate, ranked firms, run history |
-| `/dashboard/pipeline/:id` | Pipeline — 7-phase agent visualizer with live SSE |
+| `/dashboard` | Command Center: all leads with status |
+| `/dashboard/new` | New Mission: targeted or discovery mode form |
+| `/dashboard/autopilot` | Autopilot: trigger-based prospecting, cost estimate, ranked firms, run history |
+| `/dashboard/pipeline/:id` | Pipeline: 7-phase agent visualizer with live SSE |
 | `/dashboard/activity` | Activity log |
 | `/dashboard/calendar` | Outreach Calendar + AI Schedule Chatbot |
 | `/dashboard/settings` | Settings |
@@ -196,12 +196,12 @@ Returns server status, simulation mode, connected SSE clients, and API key prese
 
 ---
 
-### Mode 1 — Targeted (you pick the company)
+### Mode 1: Targeted (you pick the company)
 ```json
 POST /api/leads/execute
 {
   "companyName": "Stripe",
-  "contactName": "Patrick Collison",    // optional — Apollo fills gaps
+  "contactName": "Patrick Collison",    // optional; Apollo fills gaps
   "contactTitle": "CEO",
   "contactEmail": "...",                // optional
   "contactLinkedIn": "...",             // optional
@@ -213,7 +213,7 @@ Returns `{ pipelineId, leadId, status: "started" }` immediately. Pipeline runs a
 
 ---
 
-### Mode 2 — Discovery (AI finds companies)
+### Mode 2: Discovery (AI finds companies)
 ```json
 POST /api/leads/discover
 {
@@ -370,4 +370,4 @@ The Mastra Studio lets you inspect agent inputs/outputs, replay individual steps
 - **Resend** free tier only sends from `onboarding@resend.dev`. Add a verified domain for a custom sender address.
 - **AiSensy** WhatsApp requires an approved message template. Leave `AISENSY_API_KEY` empty to skip WhatsApp entirely.
 - **MongoDB** must be running locally before starting the server (`mongod` or MongoDB Compass).
-- **Simulation mode** (`SIMULATION_MODE=true`) mocks all external API calls (Apollo, Tavily, Resend, HeyReach, AiSensy) and produces identical payload shapes — all downstream agents and the UI work normally.
+- **Simulation mode** (`SIMULATION_MODE=true`) never sends anything: Resend, HeyReach and AiSensy sends are simulated with identical payload shapes, so all downstream agents and the UI work normally. With `LIVE_RESEARCH=true`, Tavily, Apollo and Groq are still used to research real firms (read-only).

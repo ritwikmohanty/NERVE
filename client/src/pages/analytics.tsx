@@ -33,7 +33,7 @@ function Bars({ rows, max }: { rows: Array<{ label: string; value: number; sub?:
           <span className="text-[11px] font-black font-mono min-w-10 text-right">{r.sub ?? r.value}</span>
         </div>
       ))}
-      {rows.length === 0 && <p className="text-xs font-semibold text-muted-foreground">No data yet — launch a few missions.</p>}
+      {rows.length === 0 && <p className="text-xs font-semibold text-muted-foreground">No data yet. Launch a few missions.</p>}
     </div>
   );
 }
@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight">Analytics</h1>
-            <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">What's converting — by segment, city, brand and bundle</p>
+            <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">What's converting by segment, city, brand and bundle</p>
           </div>
           <div className="flex gap-2">
             <button onClick={load} className="h-9 px-3 border-2 border-black bg-white text-xs font-black uppercase flex items-center gap-1.5"><RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh</button>

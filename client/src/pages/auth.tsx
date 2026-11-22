@@ -19,7 +19,7 @@ const BRANDS = [
 const POINTS = [
   { icon: Building2, text: "Finds the architects, designers & developers who decide what gets specified" },
   { icon: Ruler, text: "Pitches the right AllHome brands at the right construction stage" },
-  { icon: Lightbulb, text: "Invites them to the nearest experience centre — and books the visit" },
+  { icon: Lightbulb, text: "Invites them to the nearest experience centre and books the visit" },
   { icon: Bath, text: "10 AI agents: enrich → signals → score → persona → strategy → content → deliver → learn" },
   { icon: PaintBucket, text: "Hands warm leads to Zoho CRM with full context" },
 ];
@@ -83,7 +83,7 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
             <span className="block text-secondary">NERVE goes out and creates them.</span>
           </motion.h1>
           <p className="text-white/70 text-sm leading-relaxed">
-            In home improvement, architects, designers and contractors influence what gets bought — the way doctors do in pharma.
+            In home improvement, architects, designers and contractors influence what gets bought, the way doctors do in pharma.
             NERVE is an autonomous outreach engine built for AllHome's collective of brands.
           </p>
           <ul className="space-y-3">

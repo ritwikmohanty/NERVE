@@ -121,7 +121,7 @@ export function buildBundle(input: BundleInput): BrandBundle {
     } else if (status === "upcoming") {
       const s = Math.max(0, 35 - weeksUntil);
       score += s;
-      why.push(`specification window opens later (~${weeksUntil} weeks, planning estimate) — worth pre-specifying`);
+      why.push(`specification window opens later (~${weeksUntil} weeks, planning estimate), so worth pre-specifying`);
     } else if (input.projectStage === "handover" && brand.category === "surfaces") {
       score += 30;
       why.push("ideal for renovation and touch-ups at handover");
@@ -143,7 +143,7 @@ export function buildBundle(input: BundleInput): BrandBundle {
     const centre = nearestCentre(input.city, brand.id);
     if (centre?.sameCity) {
       score += 7;
-      why.push(`experience centre in ${centre.centre.city}`);
+      why.push(`${centre.centre.kind === "dealer" ? "dealer showroom" : "experience centre"} in ${centre.centre.city}`);
     }
 
     return {

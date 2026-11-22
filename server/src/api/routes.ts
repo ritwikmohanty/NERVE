@@ -230,7 +230,7 @@ api.post("/leads/discover", async (c) => {
       maxResults: Math.min(Math.max(Number(body.maxResults) || 3, 1), 8),
     };
     const leads = await runLeadIngestionAgent(input, auth.orgId);
-    if (leads.length === 0) return c.json({ error: "No new firms found — all matches already have active pipelines" }, 404);
+    if (leads.length === 0) return c.json({ error: "No new firms found. All matches already have active pipelines" }, 404);
 
     (async () => {
       for (const lead of leads) await runPipelineSafely(leads[0].id, lead);
@@ -387,7 +387,7 @@ api.post("/leads/:id/crm-push", async (c) => {
 // ─── Live-send toggle (locked on the public demo) ───
 api.post("/config/simulation", async (c) => {
   if (process.env.ALLOW_LIVE_TOGGLE !== "true" || c.get("auth").role === "demo") {
-    return c.json({ error: "Live sending is locked on this deployment — messages are always simulated", simulationMode: config.simulationMode }, 403);
+    return c.json({ error: "Live sending is locked on this deployment. Messages are always simulated", simulationMode: config.simulationMode }, 403);
   }
   const body = await readJson<{ enabled?: unknown }>(c);
   if (typeof body?.enabled !== "boolean") return c.json({ error: "enabled must be a boolean" }, 400);
@@ -539,7 +539,7 @@ async function buildCalendar(orgId: string): Promise<CalendarEvent[]> {
     events.push({
       id: `visit-${v._id}`, kind: "visit", leadId: String(v.leadId), companyName: String(v.companyName), contactName: String(v.contactName), contactTitle: "",
       channel: "visit", touchNumber: 0, scheduledAt: String(v.scheduledAt), dayOffset: 0, toneFramework: "", timezone: "Asia/Kolkata", primaryChannel: "visit",
-      centreCity: String(v.centreCity), brandName: String(v.brandName), address: String(v.address || ""), status: String(v.status), purpose: `Experience centre visit — ${v.brandName}, ${v.centreCity}`,
+      centreCity: String(v.centreCity), brandName: String(v.brandName), address: String(v.address || ""), status: String(v.status), purpose: `Experience centre visit: ${v.brandName}, ${v.centreCity}`,
     });
   }
   return events.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
@@ -558,7 +558,7 @@ api.get("/calendar/events", async (c) => {
 function formatInZone(dt: Date, timeZone = "Asia/Kolkata"): string {
   const opts = (tz: string): Intl.DateTimeFormatOptions => ({ weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz, timeZoneName: "short" });
   try {
-    return dt.toLocaleString("en-US", opts(timeZone));
+    return dt.toLocaleString("en-US", opts(timeZone)).replace("GMT+5:30", "IST");
   } catch {
     return dt.toLocaleString("en-US", opts("UTC"));
   }
@@ -580,7 +580,7 @@ api.post("/calendar/chat", async (c) => {
     if (llmEnabled()) {
       try {
         const reply = await llmGenerateText(
-          `You are the schedule assistant for AllHome's NERVE outreach engine. Today is ${formatInZone(new Date())}. Answer clearly and concisely using ONLY this schedule (touches and experience-centre visits):\n${schedule}\nFormat channels nicely (WhatsApp, LinkedIn DM, Email). Reply in plain text only — no markdown tables, headings or bold; use short "- " bullet lines when listing items.`,
+          `You are the schedule assistant for AllHome's NERVE outreach engine. Today is ${formatInZone(new Date())}. Answer clearly and concisely using ONLY this schedule (touches and experience-centre visits):\n${schedule}\nFormat channels nicely (WhatsApp, LinkedIn DM, Email). Reply in plain text only, no markdown tables, headings or bold; use short "- " bullet lines when listing items.`,
           message
         );
         return c.json({ reply });

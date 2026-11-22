@@ -126,6 +126,8 @@ export interface Signal {
   sourceUrl?: string;
   dateDetected: string;
   recencyDays: number;
+  /** True when the source gave no publication date (recencyDays is then only a planning guess) */
+  dateUnknown?: boolean;
   strength: SignalStrength;
   recencyWeight: number; // 0-1, decays with age
 }
@@ -203,7 +205,7 @@ export interface OutreachStrategy {
   leadId: string;
   primaryChannel: OutreachChannel;
   secondaryChannel?: OutreachChannel;
-  sendTimestamp: string; // ISO — when Touch 1 fires
+  sendTimestamp: string; // ISO, when Touch 1 fires
   timezone: string;
   toneFramework: ToneFramework;
   cadence: TouchPoint[];
@@ -228,6 +230,8 @@ export interface GeneratedContent {
   linkedinHeadlineSuggestion?: string;
   /** One-page specification sheet for the recommended bundle (markdown) */
   specSheet?: string;
+  /** Who wrote the touches: the LLM (editing a checked draft), the deterministic templates, or a mix */
+  drafter?: "llm" | "template" | "mixed";
   generatedAt: string;
 }
 

@@ -11,7 +11,7 @@ export async function connectDB(): Promise<Db> {
   if (_db) return _db;
   await client.connect();
   _db = client.db(DB_NAME);
-  console.log(`📦 Connected to MongoDB — ${DB_NAME}`);
+  console.log(`📦 Connected to MongoDB, ${DB_NAME}`);
   return _db;
 }
 

@@ -61,7 +61,7 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
       },
     });
   } catch {
-    throw new ApiError("Can't reach the NERVE server — it may be waking up, try again in a few seconds.", 0, {});
+    throw new ApiError("Can't reach the NERVE server. It may be waking up; try again in a few seconds.", 0, {});
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));

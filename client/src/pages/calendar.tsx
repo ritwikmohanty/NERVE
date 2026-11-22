@@ -103,7 +103,7 @@ export default function CalendarPage() {
     {
       id: "welcome",
       role: "assistant",
-      content: "👋 Hi! I'm your outreach schedule assistant. Ask me about upcoming activities, specific dates, or lead follow-ups!",
+      content: "Ask about upcoming touches, a specific date, a lead's follow-ups or booked experience-centre visits.",
       timestamp: new Date(),
     },
   ]);

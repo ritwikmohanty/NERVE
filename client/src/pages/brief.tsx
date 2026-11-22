@@ -12,7 +12,7 @@ export default function BriefPage() {
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight flex items-center gap-3"><BookOpen className="size-8" /> AllHome Brief</h1>
-          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">The knowledge every agent drafts from — drafts may only use facts on this page</p>
+          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">The knowledge every agent drafts from. Drafts may only use facts on this page</p>
         </div>
 
         <section className="border-2 border-black bg-[#1A1A18] text-white p-5 shadow-[4px_4px_0_0_#000] space-y-3" data-tour="brief-company">
@@ -40,7 +40,7 @@ export default function BriefPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
             {a.painPoints.map((p) => <div key={p} className="border-2 border-black bg-accent px-3 py-2 text-[12px] font-bold">{p}</div>)}
           </div>
-          <p className="text-[12px] font-semibold text-muted-foreground mt-3">Every draft connects one recipient-specific detail to one concrete brand capability below, with exactly one ask — usually a visit to the nearest experience centre.</p>
+          <p className="text-[12px] font-semibold text-muted-foreground mt-3">Every draft connects one recipient-specific detail to one concrete brand capability below, with exactly one ask, usually a visit to the nearest experience centre.</p>
         </section>
 
         <div className="grid lg:grid-cols-2 gap-4" data-tour="brief-brands">

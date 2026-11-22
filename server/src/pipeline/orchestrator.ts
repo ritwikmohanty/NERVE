@@ -108,16 +108,16 @@ export async function runFullPipeline(pipelineId: string, lead: EnrichedLead, op
   const response = opts.reply !== undefined
     ? await runResponseMonitorAgent(lead.id, strategy.primaryChannel, opts.reply || undefined)
     : awaitingRealReply
-      ? await runResponseMonitorAgent(lead.id, strategy.primaryChannel, undefined, "Awaiting a real reply — sending is disabled on this deployment, so no response can arrive yet. Use “Simulate a reply” to test how NERVE would react.")
+      ? await runResponseMonitorAgent(lead.id, strategy.primaryChannel, undefined, "Awaiting a real reply. Sending is disabled on this deployment, so no response can arrive yet. Use “Simulate a reply” to test how NERVE would react.")
       : await simulateNoReply(lead.id, deliveries);
   await logAgentRun(lead.id, 9, "Response Monitor", response);
 
   const branchMessages: Record<string, string> = {
-    escalate_human: `Positive reply from ${lead.contactName} — handed off to the ${lead.projectCity || ""} sales team`,
-    book_visit: `${lead.contactName} wants to see the products — visit booked${response.visit ? ` at ${response.visit.brandName}, ${response.visit.centreCity}` : ""}`,
-    cancel_sequence: `Negative reply — ${lead.contactName} marked do-not-contact`,
-    nurture: `No reply yet from ${lead.contactName} — continuing the stage-timed cadence`,
-    continue_cadence: `Neutral reply — continuing the ${strategy.cadence.length}-touch cadence`,
+    escalate_human: `Positive reply from ${lead.contactName}; handed off to the ${lead.projectCity || ""} sales team`,
+    book_visit: `${lead.contactName} wants to see the products. Visit booked${response.visit ? ` at ${response.visit.brandName}, ${response.visit.centreCity}` : ""}`,
+    cancel_sequence: `Negative reply. ${lead.contactName} marked do-not-contact`,
+    nurture: `No reply yet from ${lead.contactName}. Continuing the stage-timed cadence`,
+    continue_cadence: `Neutral reply. Continuing the ${strategy.cadence.length}-touch cadence`,
   };
   sseManager.emit("branch_decision", lead.id, { pipelineId, action: response.action, message: branchMessages[response.action] });
 
@@ -129,11 +129,11 @@ export async function runFullPipeline(pipelineId: string, lead: EnrichedLead, op
     learning = {
       leadId: lead.id,
       weightUpdates: [],
-      heuristicUpdates: ["Waiting for a real outcome — scoring weights are unchanged until this lead replies."],
+      heuristicUpdates: ["Waiting for a real outcome. Scoring weights are unchanged until this lead replies."],
       toneRuleUpdates: [],
       updatedAt: new Date().toISOString(),
     };
-    sseManager.emitAgentStatus(lead.id, 10, "Learning Loop", "complete", "No outcome yet — weights unchanged");
+    sseManager.emitAgentStatus(lead.id, 10, "Learning Loop", "complete", "No outcome yet; weights unchanged");
   } else {
     learning = await runLearningLoopAgent(response, intent, strategy, persona, lead.orgId, lead.segment);
   }
@@ -145,7 +145,7 @@ export async function runFullPipeline(pipelineId: string, lead: EnrichedLead, op
   await leadsCol().updateOne({ _id: lead.id }, { $set: { status: awaitingRealReply ? "awaiting_reply" : leadStatusForAction(response.action), updatedAt: completedAt } });
 
   const totalDurationMs = Date.now() - started;
-  console.log(`🏁 Pipeline complete for ${lead.companyName} in ${totalDurationMs}ms — ${intent.compositeScore}/100 ${intent.tier}, ${strategy.primaryChannel}, ${response.action}`);
+  console.log(`🏁 Pipeline complete for ${lead.companyName} in ${totalDurationMs}ms, ${intent.compositeScore}/100 ${intent.tier}, ${strategy.primaryChannel}, ${response.action}`);
   sseManager.emit("pipeline_complete", lead.id, {
     pipelineId,
     status: finalStatus,

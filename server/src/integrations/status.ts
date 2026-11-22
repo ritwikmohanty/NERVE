@@ -9,8 +9,8 @@ import { llmEnabled, LLM_MODEL } from "../lib/llm.js";
 async function researchProviders(): Promise<ResearchProvider[]> {
   const apollo = apolloEnabled() ? await probeApollo() : { ok: false, note: config.apolloApiKey ? "Live research is off" : "No Apollo API key configured" };
   return [
-    { id: "tavily", label: "Tavily", use: "Web & news search about each firm", state: tavilyEnabled() ? "live" : "off", detail: tavilyEnabled() ? "Live — real search results with sources" : config.tavilyApiKey ? "Key set, live research is off" : "No key — sample firms only" },
-    { id: "groq", label: `Groq · ${LLM_MODEL}`, use: "Extracts firm profiles from sources, drafts messages", state: llmEnabled() ? "live" : "off", detail: llmEnabled() ? "Live" : "Off — template drafts" },
+    { id: "tavily", label: "Tavily", use: "Web & news search about each firm", state: tavilyEnabled() ? "live" : "off", detail: tavilyEnabled() ? "Live: real search results with sources" : config.tavilyApiKey ? "Key set; live research is off" : "No key: sample firms only" },
+    { id: "groq", label: `Groq · ${LLM_MODEL}`, use: "Extracts firm profiles from sources, drafts messages", state: llmEnabled() ? "live" : "off", detail: llmEnabled() ? "Live" : "Off: template drafts" },
     { id: "apollo", label: "Apollo", use: "Company enrichment (team size, industry)", state: apollo.ok ? "live" : config.apolloApiKey ? "limited" : "off", detail: apollo.note },
   ];
 }
@@ -61,7 +61,7 @@ async function probeApollo(): Promise<{ ok: boolean; note: string }> {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
     const ok = res.ok;
     const msg = String(body.error || body.message || "");
-    apolloProbe = { at: Date.now(), ok, note: ok ? "Company enrichment available" : /free plan/i.test(msg) ? "Free plan — search/enrichment APIs not included" : /not authorized|scope/i.test(msg) ? "Key lacks company-enrichment scope (create a master key in Apollo)" : msg.slice(0, 100) || `HTTP ${res.status}` };
+    apolloProbe = { at: Date.now(), ok, note: ok ? "Company enrichment available" : /free plan/i.test(msg) ? "Free plan: search and enrichment APIs not included" : /not authorized|scope/i.test(msg) ? "Key lacks company-enrichment scope (create a master key in Apollo)" : msg.slice(0, 100) || `HTTP ${res.status}` };
   } catch (e) {
     apolloProbe = { at: Date.now(), ok: false, note: String(e).slice(0, 100) };
   }
@@ -86,7 +86,7 @@ async function checkResend(): Promise<Check> {
     return {
       state: "needs_setup",
       shortAction: "verify a sending domain",
-      detail: "API key connected, but no verified sending domain yet — Resend's test sender (onboarding@resend.dev) only delivers to the account owner's own inbox.",
+      detail: "API key connected, but no verified sending domain yet. Resend's test sender (onboarding@resend.dev) only delivers to the account owner's own inbox.",
       nextSteps: ["resend.com → Domains → Add domain and add the DNS records it shows", "Once verified, set RESEND_FROM, e.g. specifiers@yourdomain.com"],
     };
   }
@@ -98,7 +98,7 @@ async function checkResend(): Promise<Check> {
       const domain = from.split("@")[1]?.toLowerCase();
       const match = data.data?.find((d) => d.name.toLowerCase() === domain);
       if (match && match.status !== "verified") {
-        return { state: "needs_setup", detail: `Domain ${match.name} is "${match.status}" — finish DNS verification in Resend.`, nextSteps: ["resend.com → Domains → verify the DNS records"] };
+        return { state: "needs_setup", detail: `Domain ${match.name} is "${match.status}". Finish DNS verification in Resend.`, nextSteps: ["resend.com → Domains → verify the DNS records"] };
       }
     }
   } catch {
@@ -188,7 +188,7 @@ export async function getIntegrationsReport(force = false): Promise<Integrations
     {
       channel: "crm", label: "CRM hand-off", provider: "Zoho CRM", providerUrl: "https://www.zoho.com/crm/", keyConfigured: false,
       state: "not_connected", canSendLive: false, shortAction: "connect Zoho CRM",
-      detail: "Hand-off is simulated — NERVE builds the exact Zoho Leads API payload but doesn't send it.",
+      detail: "Hand-off is simulated: NERVE builds the exact Zoho Leads API payload but doesn't send it.",
       nextSteps: ["Create a server-based client at api-console.zoho.in", "Add OAuth credentials to enable the live push"],
       forAllHome: "AllHome's existing Zoho CRM would receive warm leads directly, assigned to the right city sales team.",
     },

@@ -46,7 +46,7 @@ export default function CentresPage() {
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight">Experience Centres</h1>
-          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Every outreach ends with an invite to touch the finishes — NERVE routes each lead to the nearest centre</p>
+          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Every outreach ends with an invite to see the finishes. NERVE routes each lead to the nearest centre</p>
         </div>
 
         <div className="grid lg:grid-cols-[1fr_340px] gap-5 items-start">
@@ -78,7 +78,7 @@ export default function CentresPage() {
                     <p className="text-[11px] font-semibold text-muted-foreground">{c.address}</p>
                     <div className="flex items-center gap-2 pt-1">
                       <span className="text-[10px] font-black border-2 border-black px-1.5 py-0.5 flex items-center gap-1"><Send className="size-3" /> {c.invited} invited</span>
-                      <span className={`text-[10px] font-black border-2 border-black px-1.5 py-0.5 flex items-center gap-1 ${c.visits ? "bg-[#599D77] text-white" : ""}`}><CalendarCheck className="size-3" /> {c.visits} visits</span>
+                      <span className={`text-[10px] font-black border-2 border-black px-1.5 py-0.5 flex items-center gap-1 ${c.visits ? "bg-[#599D77] text-white" : ""}`}><CalendarCheck className="size-3" /> {c.visits} visit{c.visits === 1 ? "" : "s"}</span>
                       <a href={c.mapUrl} target="_blank" rel="noreferrer" className="ml-auto text-[10px] font-black underline flex items-center gap-1">Map <ExternalLink className="size-3" /></a>
                     </div>
                   </div>

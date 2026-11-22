@@ -93,7 +93,7 @@ export default function SettingsPage() {
           </button>
         </div>
         {error && <p className="text-xs font-bold text-white bg-destructive border-2 border-black px-3 py-2">{error}</p>}
-        {isDemo && <p className="text-xs font-bold border-2 border-black bg-secondary px-3 py-2">You're in the shared demo workspace — changes here are visible to other demo visitors and reset periodically.</p>}
+        {isDemo && <p className="text-xs font-bold border-2 border-black bg-secondary px-3 py-2">You're in the shared demo workspace. Changes here are visible to other demo visitors and reset periodically.</p>}
 
         <Section tour="settings-workspace" title="Workspace & sender" icon={<Shield className="size-4" />}>
           <div className="grid sm:grid-cols-3 gap-3">
@@ -104,7 +104,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section tour="settings-brands" title="Brand catalog" icon={<Plug className="size-4" />}>
-          <p className="text-xs font-semibold text-muted-foreground -mt-2">Product lines and specification windows the bundler uses. Toggle which brands this workspace sells.</p>
+          <p className="text-xs font-semibold text-muted-foreground -mt-2">Product lines, specification windows and lead-time estimates the bundler uses for all seven brands. Lead times are planning estimates, not published figures.</p>
           <div className="space-y-2">
             {catalog?.brands.map((b) => {
               const on = brands.includes(b.id);
@@ -147,14 +147,14 @@ export default function SettingsPage() {
           <Section title="Sending channels" icon={<Plug className="size-4" />}>
             <div className="flex flex-wrap items-center gap-2 -mt-2">
               <p className="text-xs font-semibold text-muted-foreground flex-1 min-w-60">
-                Messages always go out from the company's own WhatsApp number, email domain and LinkedIn profiles. Each channel needs that account connected with an API key — until then NERVE simulates the send.
+                Messages always go out from the company's own WhatsApp number, email domain and LinkedIn profiles. Each channel needs that account connected with an API key. Until then NERVE simulates the send.
               </p>
               <button onClick={() => { setChecking(true); refreshIntegrations().finally(() => setChecking(false)); }} className="h-8 px-3 border-2 border-black bg-white text-[11px] font-black uppercase flex items-center gap-1.5">
                 {checking ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Re-check
               </button>
             </div>
             <div className="flex items-center gap-2 text-xs font-black border-2 border-black px-3 py-2 bg-[#CEEBFC]">
-              <Lock className="size-4" /> {health?.simulationMode ? "Demo mode is on — no real messages are sent from this deployment, even on ready channels" : "Live mode — ready channels send for real"}
+              <Lock className="size-4" /> {health?.simulationMode ? "Demo mode is on: no real messages are sent from this deployment, even on ready channels" : "Live mode: ready channels send for real"}
             </div>
             <div className="space-y-3">
               {integrations?.channels.map((c) => {
@@ -184,7 +184,7 @@ export default function SettingsPage() {
         <Section title="Research providers (read-only)" icon={<Plug className="size-4" />}>
           <p className="text-xs font-semibold text-muted-foreground -mt-2">
             {integrations?.liveResearch
-              ? "Live research is on: real firms are researched with these providers. They only retrieve information — they never send anything. On this demo they run on the developer's personal API keys."
+              ? "Live research is on: real firms are researched with these providers. They only retrieve information and never send anything. On this demo they run on the developer's personal API keys."
               : "Live research is off: missions use fictional sample firms."}
           </p>
           <div className="grid sm:grid-cols-3 gap-2">
@@ -221,7 +221,7 @@ export default function SettingsPage() {
               <button className="h-9 px-4 border-2 border-black bg-black text-white font-black uppercase text-xs">Invite</button>
             </form>
           )}
-          {invited && <p className="text-xs font-bold border-2 border-black bg-secondary px-3 py-2">Account created for {invited.email} — temporary password: <span className="font-mono">{invited.tempPassword}</span></p>}
+          {invited && <p className="text-xs font-bold border-2 border-black bg-secondary px-3 py-2">Account created for {invited.email}. Temporary password: <span className="font-mono">{invited.tempPassword}</span></p>}
         </Section>
       </div>
     </div>

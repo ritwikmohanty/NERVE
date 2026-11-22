@@ -1,7 +1,6 @@
 import { nanoid } from "nanoid";
 import { agentRunsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
-import { llmGenerateText, hasLLMKey, llmEnabled } from "../lib/llm.js";
 import { config } from "../config.js";
 import { SEGMENTS, STAGES, PROJECT_TYPES, stageIndex } from "../allhome/catalog.js";
 import type {
@@ -20,6 +19,7 @@ import type {
 
 const AGENT_NUMBER = 7;
 const AGENT_NAME = "Explainer";
+const CHN: Record<string, string> = { whatsapp: "WhatsApp", email: "Email", linkedin_dm: "LinkedIn DM" };
 
 // ─── Agent Graph Builder (for React Flow frontend) ───
 
@@ -79,7 +79,7 @@ function summarizeOutput(agentNumber: number, outputJson: string): string {
   try {
     const data = JSON.parse(outputJson);
     switch (agentNumber) {
-      case 1: return `Enriched: ${data.companyName} — ${data.contactName}`;
+      case 1: return `Enriched: ${data.companyName}, ${data.contactName}`;
       case 2: return `${data.signals?.length || 0} signals, top: ${data.topSignal?.title?.slice(0, 40) || "none"}`;
       case 3: return `Score: ${data.compositeScore}/100 (${data.tier})`;
       case 4: return `${data.archetypeLabel} (${Math.round((data.confidence || 0) * 100)}%)`;
@@ -111,24 +111,24 @@ function buildRationale(
 
   items.push({
     agentName: "Lead Ingestion",
-    decision: `${lead.companyName} — ${lead.contactUnknown ? "no named contact yet" : `${lead.contactName}${lead.contactTitle ? ` (${lead.contactTitle})` : ""}`}`,
-    explanation: `${seg} in ${lead.projectCity || "India"}${lead.projectsPerYear ? ` delivering ~${lead.projectsPerYear} projects a year` : ""}${lead.specialties?.length ? `, known for ${lead.specialties.join(" and ").toLowerCase()}` : ""}. ${lead.projectAssumed ? "No project details were provided — the bundle assumes a typical " + (lead.projectType ? PROJECT_TYPES[lead.projectType].toLowerCase() : "premium") + " project at the " + stage.toLowerCase() + " stage." : `Current project: ${lead.projectName || "unnamed"} (${lead.projectType ? PROJECT_TYPES[lead.projectType] : "premium"}${lead.projectValue ? `, ${lead.projectValue}` : ""}) at the ${stage.toLowerCase()} stage.`}${lead.dataSource === "live" ? ` Profile built from live research (${lead.research?.providers.join(", ") || "web"}; ${lead.research?.sources.length || 0} sources)${lead.contactUnknown ? " — no named contact was found publicly, so outreach addresses the studio." : "."}` : " (Fictional demo profile.)"}`,
+    decision: `${lead.companyName}: ${lead.contactUnknown ? "no named contact yet" : `${lead.contactName}${lead.contactTitle ? ` (${lead.contactTitle})` : ""}`}`,
+    explanation: `${seg} in ${lead.projectCity || "India"}${lead.projectsPerYear ? ` delivering ~${lead.projectsPerYear} projects a year` : ""}${lead.specialties?.length ? `, known for ${lead.specialties.join(" and ").toLowerCase()}` : ""}. ${lead.projectAssumed ? "No project details were provided, the bundle assumes a typical " + (lead.projectType ? PROJECT_TYPES[lead.projectType].toLowerCase() : "premium") + " project at the " + stage.toLowerCase() + " stage." : `Current project: ${lead.projectName || "unnamed"} (${lead.projectType ? PROJECT_TYPES[lead.projectType] : "premium"}${lead.projectValue ? `, ${lead.projectValue}` : ""}) at the ${stage.toLowerCase()} stage.`}${lead.dataSource === "live" ? ` Profile built from live research (${lead.research?.providers.join(", ") || "web"}; ${lead.research?.sources.length || 0} sources)${lead.contactUnknown ? ", no named contact was found publicly, so outreach addresses the studio." : "."}` : " (Fictional demo profile.)"}`,
     confidence: 0.95,
   });
 
   items.push({
     agentName: "Signal Scout",
-    decision: signals.topSignal ? `${signals.signals.length} signals — strongest: "${signals.topSignal.title}"` : "No strong signals",
+    decision: signals.topSignal ? `${signals.signals.length} signals. Strongest: "${signals.topSignal.title}"` : "No strong signals",
     explanation: signals.topSignal
-      ? `The strongest buying signal is "${signals.topSignal.title}" (${signals.topSignal.category.replace(/_/g, " ")}, ${signals.topSignal.strength}, ${signals.topSignal.recencyDays} days ago, ${signals.topSignal.source}). ${signals.signals.slice(1, 3).map((s) => `"${s.title}"`).join(" and ")} add context.`
-      : "No recent public activity found — outreach leans on project stage instead.",
+      ? `The strongest buying signal is "${signals.topSignal.title}" (${signals.topSignal.category.replace(/_/g, " ")}, ${signals.topSignal.strength}, ${signals.topSignal.dateUnknown ? "date unknown" : `${signals.topSignal.recencyDays} days ago`}, ${signals.topSignal.source}). ${signals.signals.slice(1, 3).map((s) => `"${s.title}"`).join(" and ")} add context.`
+      : "No recent public activity found, so outreach leans on project stage instead.",
     confidence: signals.topSignal ? 0.85 : 0.5,
   });
 
   const topDims = [...intent.dimensions].sort((a, b) => b.weightedScore - a.weightedScore).slice(0, 3);
   items.push({
     agentName: "Intent Scorer",
-    decision: `${intent.compositeScore}/100 — ${intent.tier}`,
+    decision: `${intent.compositeScore}/100 (${intent.tier})`,
     explanation: `Top drivers: ${topDims.map((d) => `${d.name} ${d.rawScore}/100 (${d.reasoning})`).join("; ")}.`,
     confidence: 0.9,
   });
@@ -144,14 +144,14 @@ function buildRationale(
     items.push({
       agentName: "Brand Bundler",
       decision: strategy.bundle.headline,
-      explanation: `Why these brands, why now: ${strategy.bundle.items.map((i) => `${i.brandName} (${i.role.replace(/_/g, " ")}) — ${i.reason}`).join(". ")}. One relationship replaces ${strategy.bundle.vendorsReplaced} separate vendors.`,
+      explanation: `Why these brands, why now: ${strategy.bundle.items.map((i) => `${i.brandName} (${i.role.replace(/_/g, " ")}): ${i.reason}`).join(". ")}. One relationship replaces ${strategy.bundle.vendorsReplaced} separate vendors.`,
       confidence: 0.88,
     });
   }
 
   items.push({
     agentName: "Strategy Commander",
-    decision: `${strategy.primaryChannel.replace(/_/g, " ")}${strategy.secondaryChannel ? " → " + strategy.secondaryChannel.replace(/_/g, " ") : ""} · ${strategy.toneFramework.replace(/_/g, " ")} · ${strategy.cadence.length} touches`,
+    decision: `${CHN[strategy.primaryChannel] || strategy.primaryChannel}${strategy.secondaryChannel ? " then " + (CHN[strategy.secondaryChannel] || strategy.secondaryChannel) : ""} · ${strategy.toneFramework.replace(/_/g, " ")} · ${strategy.cadence.length} touches`,
     explanation: strategy.decisions.map((d) => `${d.decision}: ${d.reasoning}`).join(" | "),
     confidence: 0.85,
   });
@@ -168,42 +168,30 @@ function buildRationale(
 
 // ─── LLM-Enhanced Summary ───
 
+/**
+ * Executive summary. Built deterministically from the decisions themselves: an LLM summary was
+ * found to misspell names, guess gender and invent reasons, and this panel must be exactly right.
+ */
 async function generateSummary(
   lead: EnrichedLead,
-  rationale: RationaleItem[],
+  _rationale: RationaleItem[],
   intent: IntentScore,
   strategy: OutreachStrategy
 ): Promise<string> {
-  const bundleLine = strategy.bundle ? ` We're leading with ${strategy.bundle.items.filter((i) => i.role === "primary").map((i) => i.brandName).join(" + ")}${strategy.bundle.nextBrand ? ` and will pre-specify ${strategy.bundle.nextBrand.brandName} in ~${strategy.bundle.nextBrand.weeksUntil} weeks` : ""}${strategy.experienceCentre ? `, inviting them to the ${strategy.experienceCentre.centre.city} experience centre` : ""}.` : "";
-  const fallbackSummary = `We're reaching ${lead.contactName} at ${lead.companyName} via ${strategy.primaryChannel.replace(/_/g, " ")} using a ${strategy.toneFramework.replace(/_/g, " ")} approach. They scored ${intent.compositeScore}/100 (${intent.tier}), making them ${intent.tier === "HOT" ? "a high-priority target for immediate outreach" : intent.tier === "WARM" ? "a solid prospect worth engaging" : "a lead to nurture carefully"}. The ${strategy.cadence.length}-touch cadence will unfold over ${strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7} days.${bundleLine}`;
-
-  // In simulation mode (or without an LLM key), skip the LLM call
-  if (!llmEnabled()) {
-    return fallbackSummary;
-  }
-
-  const systemPrompt = `You are a sales strategy advisor explaining AI-driven outreach decisions to a human operator. Write in plain English, 2-3 sentences max. Be specific, not generic.`;
-
-  const userMessage = `Summarize the outreach plan for ${lead.contactUnknown ? `the ${lead.companyName} team` : `${lead.contactName}${lead.contactTitle ? ` (${lead.contactTitle})` : ""} at ${lead.companyName}`}:
-- Intent: ${intent.tier} (${intent.compositeScore}/100)
-- Channel: ${strategy.primaryChannel}
-- Tone: ${strategy.toneFramework}
-- Brand bundle: ${strategy.bundle?.headline || "n/a"}
-- Experience centre: ${strategy.experienceCentre ? strategy.experienceCentre.centre.city : "n/a"}
-- Touches: ${strategy.cadence.length} over ${strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7} days
-- Project: ${lead.projectAssumed ? "not provided (planning assumes a typical project — do not describe one)" : `${lead.projectName || "unnamed"}, ${lead.projectType || ""} at ${lead.projectStage || ""} stage`}
-- Profile: ${lead.dataSource === "live" ? lead.research?.summary || "live research found little public information" : "fictional demo profile"}
-- Contact details on file: ${[lead.contactEmail && "email", lead.contactPhone && "WhatsApp", lead.contactLinkedIn && "LinkedIn"].filter(Boolean).join(", ") || "none yet"}
-
-Write a 2-3 sentence executive summary of why we're reaching out, through this channel, in this way. Use only the facts above — never invent project details, gender or personal facts (use the person's name or "they").`;
-
-  try {
-    const response = await llmGenerateText(systemPrompt, userMessage);
-    return response.trim() || fallbackSummary;
-  } catch (err) {
-    console.warn("[Agent 7] LLM summary failed, using fallback:", String(err));
-    return fallbackSummary;
-  }
+  const who = lead.contactUnknown ? `the ${lead.companyName} team` : `${lead.contactName} at ${lead.companyName}`;
+  const tone = strategy.toneFramework.replace(/_/g, "-");
+  const days = strategy.cadence[strategy.cadence.length - 1]?.dayOffset || 7;
+  const tierLine = intent.tier === "HOT" ? "a high priority" : intent.tier === "WARM" ? "a solid prospect" : "one to nurture";
+  const primary = strategy.bundle?.items.filter((i) => i.role === "primary").map((i) => i.brandName) || [];
+  const c = strategy.experienceCentre;
+  const parts = [
+    `We're contacting ${who} on ${CHN[strategy.primaryChannel] || strategy.primaryChannel}${strategy.secondaryChannel ? `, with ${(CHN[strategy.secondaryChannel] || strategy.secondaryChannel).replace("Email", "email")} as the follow-up` : ""}, using ${/^[aeiou]/i.test(tone) ? "an" : "a"} ${tone} tone.`,
+    `Intent is ${intent.compositeScore}/100 (${intent.tier}), which makes this ${tierLine}.`,
+    primary.length ? `The messages lead with ${primary.join(" and ")}${strategy.bundle?.nextBrand ? `, then pre-specify ${strategy.bundle.nextBrand.brandName} in about ${strategy.bundle.nextBrand.weeksUntil} weeks` : ""}.` : "",
+    `${strategy.cadence.length} touches over ${days} days${c ? `, with an invite to the ${c.brandName} ${c.centre.kind === "dealer" ? "dealer showroom" : "experience centre"} in ${c.centre.city}` : ""}.`,
+    lead.projectAssumed ? "No project details were given, so the drafts don't mention a specific project." : "",
+  ];
+  return parts.filter(Boolean).join(" ");
 }
 
 // ─── Main Agent Function ───
@@ -244,7 +232,7 @@ export async function runExplainerAgent(
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", outputSummary);
     sseManager.emit("rationale_update", lead.id, rationale);
 
-    console.log(`✅ Agent 7 complete in ${durationMs}ms — ${outputSummary}`);
+    console.log(`✅ Agent 7 complete in ${durationMs}ms, ${outputSummary}`);
     return rationale;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";

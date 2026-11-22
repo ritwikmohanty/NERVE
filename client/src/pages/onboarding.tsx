@@ -78,7 +78,7 @@ export default function OnboardingPage() {
           </div>
           <div>
             <p className="font-black uppercase">Set up your workspace</p>
-            <p className="text-xs font-bold text-muted-foreground">Takes under a minute — you can change all of this later in Settings</p>
+            <p className="text-xs font-bold text-muted-foreground">Takes under a minute. You can change all of this later in Settings</p>
           </div>
         </div>
 
@@ -99,7 +99,7 @@ export default function OnboardingPage() {
                 <div className="space-y-5">
                   <div>
                     <h2 className="text-xl font-black uppercase">Who's reaching out?</h2>
-                    <p className="text-sm text-muted-foreground">Messages are signed with this name — specifiers reply to people, not brands.</p>
+                    <p className="text-sm text-muted-foreground">Messages are signed with this name, because specifiers reply to people, not brands.</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="org">Company</Label>
@@ -173,7 +173,7 @@ export default function OnboardingPage() {
                 <div className="space-y-4">
                   <div>
                     <h2 className="text-xl font-black uppercase">Priority cities</h2>
-                    <p className="text-sm text-muted-foreground">Cities with AllHome experience centres convert best — visits are booked at the nearest one.</p>
+                    <p className="text-sm text-muted-foreground">Cities with AllHome experience centres convert best, because visits are booked at the nearest one.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {Array.from(new Set([...(catalog?.cities || []), "Pune", "Bengaluru", "Ahmedabad"])).sort().map((city) => {

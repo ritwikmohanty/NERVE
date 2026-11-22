@@ -18,7 +18,7 @@ import { BRANDS, PRIORITY_CITIES, type Segment } from "../allhome/catalog.js";
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   (() => {
-    console.warn("⚠️  JWT_SECRET not set — using a random secret (sessions reset on restart)");
+    console.warn("⚠️  JWT_SECRET not set, using a random secret (sessions reset on restart)");
     return randomBytes(32).toString("hex");
   })();
 

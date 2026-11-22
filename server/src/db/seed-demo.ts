@@ -16,10 +16,10 @@ import { seedDemoAutopilot } from "../prospecting/engine.js";
 import type { TargetedInput } from "../types/index.js";
 
 const SEED: Array<Omit<TargetedInput, "mode"> & { reply?: string }> = [
-  { companyName: "Studio Kaarva Architects", segment: "architect", projectType: "villa", projectStage: "structure", projectCity: "Mumbai", projectName: "Kaarva Villa, Alibaug", projectValue: "₹14 Cr", reply: "Lovely timing — can we visit your experience centre next week to see the facade panels and window samples in person?" },
-  { companyName: "Meridian Habitat Developers", segment: "developer", projectType: "apartment_tower", projectStage: "design", projectCity: "Hyderabad", projectName: "Meridian Skyline, Kokapet", projectValue: "₹320 Cr", reply: "Interested. Please send project pricing and lead times for the facade and windows — let's set up a call." },
+  { companyName: "Studio Kaarva Architects", segment: "architect", projectType: "villa", projectStage: "structure", projectCity: "Mumbai", projectName: "Kaarva Villa, Alibaug", projectValue: "₹14 Cr", reply: "Lovely timing. Can we visit your experience centre next week to see the facade panels and window samples in person?" },
+  { companyName: "Meridian Habitat Developers", segment: "developer", projectType: "apartment_tower", projectStage: "design", projectCity: "Hyderabad", contactName: "Arjun Reddy", contactTitle: "Director, Projects", projectName: "Meridian Skyline, Kokapet", projectValue: "₹320 Cr", reply: "Interested. Please send project pricing and lead times for the facade and windows, let's set up a call." },
   { companyName: "Ochre & Oak Interiors", segment: "id_firm", projectType: "premium_apartment", projectStage: "fitout", projectCity: "Mumbai", projectName: "Worli Sea-view Residence", projectValue: "₹5 Cr", reply: "Sounds great! My client and I would love to come by the showroom to see the bath fittings and hardware." },
-  { companyName: "Kosha Design Studio", segment: "id_firm", projectType: "hospitality", projectStage: "mep", projectCity: "Delhi", projectName: "Boutique Hotel, Chhatarpur", projectValue: "₹60 Cr", reply: "Thanks — swamped this month, can you follow up in a few weeks?" },
+  { companyName: "Kosha Design Studio", segment: "id_firm", projectType: "hospitality", projectStage: "mep", projectCity: "Delhi", projectName: "Boutique Hotel, Chhatarpur", projectValue: "₹60 Cr", reply: "Thanks, but we're swamped this month. Can you follow up in a few weeks?" },
   { companyName: "Prism Build PMC", segment: "contractor", projectType: "office", projectStage: "fitout", projectCity: "Mumbai", projectName: "Grade-A Office Fit-out, Powai", projectValue: "₹40 Cr", reply: "" },
   { companyName: "Monsoon House Architects", segment: "architect", projectType: "hospitality", projectStage: "design", projectCity: "Bengaluru", projectName: "Forest Retreat, Devanahalli", projectValue: "₹110 Cr", reply: "" },
   { companyName: "The Rao Residence", segment: "homeowner", projectType: "villa", projectStage: "finishing", projectCity: "Hyderabad", contactName: "Ananya Rao", contactTitle: "Homeowner", projectName: "Rao Villa, Jubilee Hills", projectValue: "₹9 Cr", reply: "Not interested, thanks. We've already finalised everything." },
@@ -57,7 +57,7 @@ export async function seedDemoWorkspace(force = process.env.DEMO_RESET_ON_BOOT =
 
   const wasSimulation = config.simulationMode;
   (config as { simulationMode: boolean }).simulationMode = true; // never send or call paid APIs while seeding
-  suppressLLM(true); // instant, deterministic seed — no LLM calls at boot
+  suppressLLM(true); // instant, deterministic seed, no LLM calls at boot
   const started = Date.now();
   try {
     for (const s of SEED) {

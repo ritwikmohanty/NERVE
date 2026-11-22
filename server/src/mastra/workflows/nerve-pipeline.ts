@@ -59,7 +59,7 @@ const step1_leadIngestion = createStep({
     const leads = await runLeadIngestionAgent(inputData as any, orgId);
     const lead = leads[0]; // take the first enriched lead
     if (!lead) {
-      throw new Error("No lead to process — duplicate of an in-flight pipeline, or discovery returned nothing");
+      throw new Error("No lead to process, duplicate of an in-flight pipeline, or discovery returned nothing");
     }
     return { lead: lead as any };
   },

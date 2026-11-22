@@ -37,7 +37,7 @@ app.route("/api", api);
 
 app.get("/", (c) =>
   c.json({
-    name: "NERVE Engine — AllHome edition",
+    name: "NERVE Engine, AllHome edition",
     version: "2.0.0",
     description: "Autonomous specifier outreach engine for AllHome's brand collective",
     health: "GET /api/health",
@@ -57,7 +57,7 @@ async function start() {
 
   serve({ fetch: app.fetch, port: config.port });
   startScheduler();
-  console.log(`🧠 NERVE (AllHome edition) — ${config.simulationMode ? "SIMULATION" : "LIVE"} mode — http://localhost:${config.port}`);
+  console.log(`🧠 NERVE (AllHome edition), ${config.simulationMode ? "SIMULATION" : "LIVE"} mode, http://localhost:${config.port}`);
 }
 
 start().catch((err) => {

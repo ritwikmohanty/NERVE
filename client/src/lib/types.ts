@@ -10,6 +10,10 @@ export type PersonaArchetype = "design_architect" | "aesthetic_designer" | "deve
 export type Segment = "architect" | "id_firm" | "developer" | "contractor" | "homeowner";
 export type ProjectType = "villa" | "premium_apartment" | "apartment_tower" | "hospitality" | "office" | "retail";
 export type ProjectStage = "design" | "structure" | "mep" | "fitout" | "finishing" | "handover";
+
+export const STAGE_LABEL: Record<string, string> = {
+  design: "Concept & Design", structure: "Structure", mep: "MEP", fitout: "Fit-out", finishing: "Finishing", handover: "Handover",
+};
 export type BudgetTier = "value" | "premium" | "luxury";
 export type ResponseAction = "escalate_human" | "book_visit" | "continue_cadence" | "cancel_sequence" | "nurture";
 

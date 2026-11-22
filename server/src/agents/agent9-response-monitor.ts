@@ -26,10 +26,10 @@ const SENTIMENT_SYSTEM_PROMPT = `You are an NLP sentiment classifier for B2B sal
 
 Also determine the recommended next action:
 - "book_visit": Positive AND they want to see samples / visit a showroom or experience centre
-- "escalate_human": For positive responses — hand off to a human sales rep
-- "continue_cadence": For neutral responses — proceed with next touch
-- "cancel_sequence": For negative responses — stop all outreach, mark as do-not-contact
-- "nurture": For no-reply — add to long-term nurture sequence
+- "escalate_human": For positive responses, hand off to a human sales rep
+- "continue_cadence": For neutral responses, proceed with next touch
+- "cancel_sequence": For negative responses, stop all outreach, mark as do-not-contact
+- "nurture": For no-reply, add to long-term nurture sequence
 
 Return as JSON:
 {
@@ -131,7 +131,7 @@ function classifySentimentKeywords(
   if (positiveCount >= 1 && VISIT_RE.test(text)) {
     return {
       sentiment: "positive",
-      reasoning: "Positive reply asking to see products in person — booking an experience-centre visit",
+      reasoning: "Positive reply asking to see products in person. Booking an experience-centre visit",
       action: "book_visit",
     };
   }
@@ -139,7 +139,7 @@ function classifySentimentKeywords(
   if (positiveCount >= 2) {
     return {
       sentiment: "positive",
-      reasoning: `Matched ${positiveCount} positive patterns — strong buying signals`,
+      reasoning: `Matched ${positiveCount} positive patterns: strong buying signals`,
       action: "escalate_human",
     };
   }
@@ -147,7 +147,7 @@ function classifySentimentKeywords(
   if (positiveCount === 1) {
     return {
       sentiment: "positive",
-      reasoning: "Single positive signal detected — likely interested",
+      reasoning: "Single positive signal detected: likely interested",
       action: "escalate_human",
     };
   }
@@ -165,7 +165,7 @@ function classifySentimentKeywords(
     if (pattern.test(text)) {
       return {
         sentiment: "neutral",
-        reasoning: `Matched neutral pattern: "${pattern.source}" — non-committal response`,
+        reasoning: `Matched neutral pattern: "${pattern.source}": non-committal response`,
         action: "continue_cadence",
       };
     }
@@ -174,7 +174,7 @@ function classifySentimentKeywords(
   // Default: neutral
   return {
     sentiment: "neutral",
-    reasoning: "No strong positive or negative signals detected — treating as neutral",
+    reasoning: "No strong positive or negative signals detected; treating as neutral",
     action: "continue_cadence",
   };
 }
@@ -244,7 +244,7 @@ export async function runResponseMonitorAgent(
           ...visit,
         });
         visitInfo = visit;
-        reasoning = `${reasoning} Visit booked at ${visit.brandName}, ${visit.centreCity}.`;
+        reasoning = `${reasoning.trim().replace(/[^.!?]$/, "$&.")} Visit booked at ${visit.brandName}, ${visit.centreCity}.`;
       }
     }
 
@@ -290,7 +290,7 @@ export async function runResponseMonitorAgent(
     sseManager.emitAgentStatus(leadId, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("response_update", leadId, responseEvent);
 
-    console.log(`✅ Agent 9 complete in ${durationMs}ms — ${summary}`);
+    console.log(`✅ Agent 9 complete in ${durationMs}ms, ${summary}`);
     return responseEvent;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";
@@ -318,12 +318,12 @@ export async function simulateNoReply(
   // Distribution: 15% positive, 10% negative, 25% neutral, 50% no_reply
   if (outcome < 15) {
     const positiveResponses = [
-      "Interesting timing — we were actually looking into this. Could you share more details about how this works for companies our size?",
+      "Interesting timing. We were actually looking into this. Could you share more details about how this works for companies our size?",
       "Thanks for reaching out! This looks relevant. Let's find 15 minutes this week to chat.",
       "Hi, I saw your message. We're evaluating solutions in this space. Can you send over a deck?",
-      "Sure, happy to connect. I'm free Thursday at 2pm IST — does that work?",
-      "This caught my eye. Let's schedule a quick call — send me your Calendly.",
-      "Lovely — can we visit your experience centre on Thursday to see the finishes in person?",
+      "Sure, happy to connect. I'm free Thursday at 2pm IST. Does that work?",
+      "This caught my eye. Let's schedule a quick call. Send me your Calendly.",
+      "Lovely. Can we visit your experience centre on Thursday to see the finishes in person?",
       "Interested. Could my team come by the showroom next week to see samples?",
     ];
     const msg = positiveResponses[Math.abs(hash) % positiveResponses.length];
@@ -338,7 +338,7 @@ export async function simulateNoReply(
     return runResponseMonitorAgent(leadId, channel, msg);
   } else if (outcome < 50) {
     const neutralResponses = [
-      "Thanks for the note. I'm swamped this quarter — can you follow up next month?",
+      "Thanks for the note. I'm swamped this quarter. Can you follow up next month?",
       "Interesting. Let me loop in my team and get back to you.",
       "Appreciate the outreach. Not the best time, but keep me on your radar.",
       "Out of office until next Monday. Will review when I'm back.",

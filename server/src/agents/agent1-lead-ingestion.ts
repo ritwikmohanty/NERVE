@@ -30,7 +30,7 @@ const LAST = ["Mehta", "Kapoor", "Rao", "Iyer", "Desai", "Malhotra", "Shetty", "
 const TITLES: Record<Segment, string[]> = {
   architect: ["Principal Architect", "Founding Partner", "Design Director", "Senior Associate Architect"],
   id_firm: ["Principal Interior Designer", "Founder & Creative Director", "Design Lead", "Senior Interior Architect"],
-  developer: ["Head of Procurement", "Director — Projects", "VP Design & Development", "Chief Projects Officer"],
+  developer: ["Head of Procurement", "Director, Projects", "VP Design & Development", "Chief Projects Officer"],
   contractor: ["Managing Director", "Head of Execution", "Project Director", "Procurement Manager"],
   homeowner: ["Homeowner", "Homeowner", "Homeowner", "Homeowner"],
 };
@@ -129,13 +129,13 @@ function simulateEnrichment(firmName: string, segment: Segment, city: string, co
   return {
     companyDomain: segment === "homeowner" ? "" : `${domainBase}.example`,
     companySize: pick(sizes[segment], h),
-    industry: segment === "homeowner" ? "Premium Homeowner" : `${SEGMENTS[segment].label} — Premium`,
+    industry: segment === "homeowner" ? "Premium Homeowner" : `${SEGMENTS[segment].label} (Premium)`,
     headquarters: `${pick(localities, h, 1)}, ${city}`,
     contactName: name,
     contactTitle: title,
     // `.example` is a reserved TLD — simulated contacts can never receive real mail
     contactEmail: `${name.toLowerCase().split(" ")[0]}@${segment === "homeowner" ? "home" : domainBase}.example`,
-    contactPhone: `+91-98${String(10000000 + (h % 89999999)).slice(0, 8)}`,
+    contactPhone: `+91-00000-${String(10000 + (h % 89999)).slice(0, 5)}`, // deliberately invalid number: a fictional lead can never reach a real phone
     contactLinkedIn: segment === "homeowner" ? "" : `https://linkedin.com/in/${slug(name)}-sample`,
     seniority: segment === "homeowner" ? undefined : inferSeniority(title),
     firmType: SEGMENTS[segment].label,
@@ -161,7 +161,7 @@ function defaultProject(firmName: string, segment: Segment, city: string, input:
   return {
     projectType,
     projectStage,
-    projectName: input.projectName || `${PROJECT_TYPES[projectType]} — ${pick(localities, h)}`,
+    projectName: input.projectName || `${PROJECT_TYPES[projectType].split(" / ")[0]}, ${pick(localities, h)}`,
     projectCity: city,
     projectValue: input.projectValue || pick(values[projectType], h),
     budgetTier: input.budgetTier || (projectType === "villa" || projectType === "hospitality" ? "luxury" : "premium"),
@@ -253,7 +253,7 @@ function simulateDiscovery(input: DiscoveryInput): DiscoveryRec[] {
     companyName: f.name,
     segment: f.segment,
     city: f.city,
-    reason: `${SEGMENTS[f.segment].label} in ${f.city} with an active premium pipeline — a strong specifier for AllHome brands.`,
+    reason: `${SEGMENTS[f.segment].label} in ${f.city} with an active premium pipeline: a strong specifier for AllHome brands.`,
   }));
 }
 
@@ -411,7 +411,7 @@ export async function runLeadIngestionAgent(input: LeadInput, orgId: string): Pr
     if (input.mode === "targeted") {
       const t = input as TargetedInput;
       if (await findDuplicateLead(orgId, t.companyName, t.contactEmail)) {
-        sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "complete", `Duplicate detected for ${t.companyName} — skipping`);
+        sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "complete", `Duplicate detected for ${t.companyName}; skipping`);
         return [];
       }
       const segment = t.segment || inferSegment(t.contactTitle, t.companyName) || "architect";
@@ -443,7 +443,7 @@ export async function runLeadIngestionAgent(input: LeadInput, orgId: string): Pr
     const summary =
       input.mode === "targeted"
         ? leads[0]
-          ? `${leads[0].dataSource === "live" ? "Researched" : "Enriched"} ${leads[0].companyName} — ${leads[0].contactUnknown ? "no named contact found" : leads[0].contactName}${leads[0].contactTitle ? ` (${leads[0].contactTitle})` : ""}${leads[0].projectName ? ` · ${leads[0].projectName}` : ""}`
+          ? `${leads[0].dataSource === "live" ? "Researched" : "Enriched"} ${leads[0].companyName}, ${leads[0].contactUnknown ? "no named contact found" : leads[0].contactName}${leads[0].contactTitle ? ` (${leads[0].contactTitle})` : ""}${leads[0].projectName ? ` · ${leads[0].projectName}` : ""}`
           : "No new leads"
         : `Discovered & enriched ${leads.length} specifier firms`;
     sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "complete", summary);
@@ -452,7 +452,7 @@ export async function runLeadIngestionAgent(input: LeadInput, orgId: string): Pr
       leads: leads.map((l) => ({ id: l.id, company: l.companyName, contact: l.contactName, title: l.contactTitle })),
       durationMs: Date.now() - startTime,
     });
-    console.log(`✅ Agent 1 complete in ${Date.now() - startTime}ms — ${summary}`);
+    console.log(`✅ Agent 1 complete in ${Date.now() - startTime}ms, ${summary}`);
     return leads;
   } catch (error) {
     sseManager.emitAgentStatus(channelId, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");

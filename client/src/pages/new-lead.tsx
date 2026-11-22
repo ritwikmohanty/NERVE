@@ -21,9 +21,9 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Building2; hint: string
 ];
 
 const SAMPLE_CAPTURE = `14/11/26, 11:05 - Kabir Malhotra: Hi! This is Kabir from Lumen Row Architects, Hyderabad.
-14/11/26, 11:06 - Kabir Malhotra: We're designing a 6,000 sq ft villa in Jubilee Hills — structure is going up now, facade drawings being finalised.
+14/11/26, 11:06 - Kabir Malhotra: We're designing a 6,000 sq ft villa in Jubilee Hills. Structure is going up now and facade drawings are being finalised.
 14/11/26, 11:07 - Kabir Malhotra: Looking at metal facade screens, large sliding windows and architectural lighting. Budget ~12 Cr.
-14/11/26, 11:08 - Kabir Malhotra: kabir@lumenrow.example | +91 98490 22110`;
+14/11/26, 11:08 - Kabir Malhotra: kabir@lumenrow.example | +91 00000 22110`;
 
 const selectCls = "h-9 w-full border-2 border-black bg-white px-2 text-sm font-semibold rounded-md";
 
@@ -197,11 +197,11 @@ export default function NewLeadPage() {
           <div className="grid lg:grid-cols-[1fr_1fr] gap-5 items-start">
             <form onSubmit={launch} className="border-2 border-black bg-white p-5 shadow-[4px_4px_0_0_#000] space-y-4" data-tour="mission-form">
               <p className="text-[11px] font-semibold border-2 border-black bg-[#CEEBFC] px-3 py-2">
-                <span className="font-black">Real firm names are researched live</span> (web + news via Tavily, profile extracted by AI) — read-only, nothing is sent. Contact details are never guessed: add the principal's name, email or WhatsApp if you have them. Leave project fields blank and the drafts won't mention a specific project.
+                <span className="font-black">Real firm names are researched live</span> (web and news via Tavily, profile extracted by AI). This is read-only; nothing is sent. Contact details are never guessed: add the principal's name, email or WhatsApp if you have them. Leave project fields blank and the drafts won't mention a specific project.
               </p>
               {origin === "capture" && captured && (
                 <div className="text-[11px] font-bold border-2 border-black bg-[#CEEBFC] px-3 py-2 flex items-center gap-2">
-                  <Wand2 className="size-3.5" /> Prefilled from Quick Capture ({captured.method === "llm" ? "AI" : "pattern"} extraction, {Math.round(captured.confidence * 100)}% confidence) — review and launch
+                  <Wand2 className="size-3.5" /> Prefilled from Quick Capture ({captured.method === "llm" ? "AI" : "pattern"} extraction, {Math.round(captured.confidence * 100)}% confidence). Review and launch
                 </div>
               )}
               <div className="grid sm:grid-cols-2 gap-3">
@@ -247,7 +247,7 @@ export default function NewLeadPage() {
               </div>
 
               <div className="border-t-2 border-black pt-4 grid sm:grid-cols-2 gap-3">
-                <p className="sm:col-span-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Project context — drives the bundle & timing</p>
+                <p className="sm:col-span-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Project context: drives the bundle & timing</p>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label>Project name</Label>
                   <Input value={form.projectName} onChange={(e) => set("projectName", e.target.value)} placeholder="e.g. Kaarva Villa, Alibaug (optional)" />
@@ -293,7 +293,7 @@ export default function NewLeadPage() {
             <div className="space-y-5 lg:sticky lg:top-4" data-tour="mission-preview">
               {preview ? (
                 <motion.div key={`${segment}-${form.projectStage}-${form.projectType}`} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} className="border-2 border-black bg-white p-5 shadow-[4px_4px_0_0_#000] space-y-6">
-                  <p className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Sparkles className="size-3" /> Live preview — updates as you edit</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Sparkles className="size-3" /> Live preview: updates as you edit</p>
                   <BundlePanel bundle={preview.bundle} brands={catalog?.brands} compact />
                   <StageRadar radar={preview.radar} brands={catalog?.brands} />
                 </motion.div>
@@ -309,11 +309,11 @@ export default function NewLeadPage() {
           <form onSubmit={discover} className="max-w-2xl border-2 border-black bg-white p-5 shadow-[4px_4px_0_0_#000] space-y-4">
             <div>
               <h2 className="text-lg font-black uppercase">Find specifiers</h2>
-              <p className="text-xs font-semibold text-muted-foreground">NERVE discovers firms, enriches them and runs the full pipeline on each. In simulation mode it uses clearly fictional sample firms.</p>
+              <p className="text-xs font-semibold text-muted-foreground">NERVE searches the web for real firms in this segment and city (read-only, about 20 seconds), researches each one and runs the full pipeline on it. If live research is off, it uses fictional sample firms instead.</p>
             </div>
             <Link to="/dashboard/autopilot" className="flex items-center gap-2 border-2 border-black bg-[#FFDA5C] px-3 py-2 text-xs font-bold shadow-[2px_2px_0_0_#000]">
               <Radar className="size-4 shrink-0" />
-              <span>Want firms found from live news — project launches, hotel signings, fit-outs — on a schedule, with cost limits? Use <b>Autopilot</b>.</span>
+              <span>Want NERVE to find firms from live news (project launches, hotel signings, fit-outs) on a schedule, with cost limits? Use <b>Autopilot</b>.</span>
               <ArrowRight className="size-4 ml-auto shrink-0" />
             </Link>
             <div className="space-y-1.5">
@@ -367,7 +367,7 @@ export default function NewLeadPage() {
             </div>
             <div className="border-2 border-black bg-[#1A1A18] text-white p-5 shadow-[4px_4px_0_0_#000] space-y-2 text-sm">
               <p className="font-black uppercase text-xs tracking-widest text-secondary">Pairs with HoloCron</p>
-              <p className="text-white/80 text-xs leading-relaxed">Inbound capture tools turn exhibition chats into leads. Quick Capture takes the same raw text one step further — straight into enrichment, scoring, a brand bundle and a stage-timed outreach cadence.</p>
+              <p className="text-white/80 text-xs leading-relaxed">Inbound capture tools turn exhibition chats into leads. Quick Capture takes the same raw text one step further: straight into enrichment, scoring, a brand bundle and a stage-timed outreach cadence.</p>
               <ul className="text-xs text-white/70 list-disc pl-4 space-y-1">
                 <li>Detects firm, contact, city, segment, project type & stage</li>
                 <li>Maps product mentions ("facade screens", "bath fittings") to AllHome brands</li>

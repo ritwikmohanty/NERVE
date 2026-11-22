@@ -9,15 +9,13 @@ import { useAuth } from "@/lib/auth";
 import type {
   AutopilotConfig, AutopilotEstimate, AutopilotOverview, Prospect, ProspectRun, Segment, TriggerType,
 } from "@/lib/types";
+import { STAGE_LABEL } from "@/lib/types";
 
 const PROSPECTABLE: Segment[] = ["architect", "id_firm", "developer", "contractor"];
 const EXTRA_CITIES = ["Pune", "Gurugram", "Noida", "Ahmedabad", "Goa", "Kochi", "Lucknow", "Surat"];
 const MAX_CITIES = 6;
 const ACTIVE_RUN = ["scanning", "running_pipelines"];
 
-const STAGE_LABEL: Record<string, string> = {
-  design: "Concept & Design", structure: "Structure", mep: "MEP", fitout: "Fit-out", finishing: "Finishing", handover: "Handover",
-};
 
 function ago(iso?: string): string {
   if (!iso) return "date not stated";
@@ -211,10 +209,10 @@ export default function AutopilotPage() {
         <div className="flex flex-wrap items-end gap-3 justify-between">
           <div>
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight flex items-center gap-3"><Radar className="size-8" /> Autopilot</h1>
-            <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">NERVE finds the firms itself — from events that mean materials will be specified soon</p>
+            <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">NERVE finds the firms itself, using events that mean materials will be specified soon</p>
           </div>
           <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase">
-            <span className={`border-2 border-black px-2 py-1 flex items-center gap-1 ${live ? "bg-[#CEEBFC]" : "bg-white"}`} title={live ? "Tavily news search + Groq extraction (read-only)" : "No research keys — sample scans only"}>
+            <span className={`border-2 border-black px-2 py-1 flex items-center gap-1 ${live ? "bg-[#CEEBFC]" : "bg-white"}`} title={live ? "Tavily news search + Groq extraction (read-only)" : "No research keys: sample scans only"}>
               <Search className="size-3.5" /> {live ? "Live research" : "Sample mode"}
             </span>
             {ov.sendingLocked && (
@@ -226,9 +224,9 @@ export default function AutopilotPage() {
         {/* How it works */}
         <div className="grid sm:grid-cols-3 gap-3" data-tour="autopilot-how">
           {[
-            { icon: Search, title: "1 · Scan the news", body: "Searches recent news per trigger and city. AI extracts the firms named — a firm is only kept if its name appears in the source.", cost: live ? "1 search + 1 AI call per query" : "Sample: no API calls" },
+            { icon: Search, title: "1 · Scan the news", body: "Searches recent news per trigger and city. AI extracts the firms named. A firm is kept only if its name appears in the source.", cost: live ? "1 search + 1 AI call per query" : "Sample: no API calls" },
             { icon: Filter, title: "2 · Triage for free", body: "Ranks every firm on trigger type, recency, specifier influence, nearby experience centre and a named project.", cost: "No API calls" },
-            { icon: Workflow, title: "3 · Full pipeline for the top few", body: "Only the top firms get all 10 agents. The rest wait in a shortlist — run any of them on demand.", cost: `~${ov.unitCosts.live.perPipeline.tavily} searches + ~${ov.unitCosts.live.perPipeline.groq} AI calls per firm` },
+            { icon: Workflow, title: "3 · Full pipeline for the top few", body: "Only the top firms get all 10 agents. The rest wait in a shortlist, and you can run any of them on demand.", cost: `~${ov.unitCosts.live.perPipeline.tavily} searches + ~${ov.unitCosts.live.perPipeline.groq} AI calls per firm` },
           ].map(({ icon: Icon, title, body, cost }) => (
             <div key={title} className="border-2 border-black bg-white p-3 shadow-[3px_3px_0_0_#000] space-y-1.5">
               <p className="text-xs font-black uppercase flex items-center gap-2"><Icon className="size-4" /> {title}</p>
@@ -283,7 +281,7 @@ export default function AutopilotPage() {
                     const full = !on && draft.cities.length >= MAX_CITIES;
                     const hasCentre = catalog?.cities.includes(c);
                     return (
-                      <button key={c} type="button" disabled={full} onClick={() => set({ cities: toggle(draft.cities, c) })} className={`border-2 border-black px-2 py-0.5 text-[11px] font-bold flex items-center gap-1 disabled:opacity-30 ${on ? "bg-black text-white" : "bg-white"}`} title={hasCentre ? "Has an AllHome centre" : "No AllHome centre — visits go to the nearest one"}>
+                      <button key={c} type="button" disabled={full} onClick={() => set({ cities: toggle(draft.cities, c) })} className={`border-2 border-black px-2 py-0.5 text-[11px] font-bold flex items-center gap-1 disabled:opacity-30 ${on ? "bg-black text-white" : "bg-white"}`} title={hasCentre ? "Has an AllHome centre" : "No AllHome centre here; visits go to the nearest one"}>
                         {hasCentre && <MapPin className="size-3" />} {c}
                       </button>
                     );
@@ -327,7 +325,7 @@ export default function AutopilotPage() {
                 </div>
                 <p className="text-[10px] font-semibold text-muted-foreground">
                   {!ov.limits.scheduleAllowed
-                    ? "Scheduling is off in the shared demo — sign up for your own workspace to run Autopilot every morning."
+                    ? "Scheduling is off in the shared demo. Sign up for your own workspace to run Autopilot every morning."
                     : ov.config.schedule !== "off" && ov.config.nextRunAt
                       ? `Next run ${when(ov.config.nextRunAt)}. Runs at 9:00 IST; if the server is asleep it runs as soon as it wakes.`
                       : "Runs at 9:00 IST. Scheduled runs use the same budget checks as manual ones."}
@@ -339,7 +337,7 @@ export default function AutopilotPage() {
               <button type="button" onClick={() => void save()} disabled={!dirty || saving} className="h-9 px-4 border-2 border-black bg-white font-black uppercase text-xs flex items-center gap-2 disabled:opacity-40 mt-3">
                 {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save settings
               </button>
-              {dirty && <span className="text-[11px] font-bold mt-3">Unsaved changes — running will save them first.</span>}
+              {dirty && <span className="text-[11px] font-bold mt-3">Unsaved changes. Running will save them first.</span>}
               {!draft.triggers.length || !draft.segments.length || !draft.cities.length ? <span className="text-[11px] font-bold text-destructive mt-3">Pick at least one trigger, segment and city.</span> : null}
             </div>
           </div>
@@ -383,7 +381,7 @@ export default function AutopilotPage() {
                 {starting === "sample" ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />} Run sample scan{sampleEst.total.groq ? ` (${sampleEst.total.groq} AI calls, no searches)` : " (no API cost)"}
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground leading-snug">
-                {live ? "Live runs research real firms — read-only, nothing is sent. " : "Live research is off on this server, so only fictional sample firms are available. "}
+                {live ? "Live runs research real firms (read-only; nothing is sent). " : "Live research is off on this server, so only fictional sample firms are available. "}
                 Sample scans use fictional firms. {ov.limits.maxRunsPerDay} runs and {ov.limits.maxPipelinesPerDay} pipelines per workspace per day ({ov.pipelinesToday} used).
               </p>
               {active && <p className="text-[11px] font-black flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" /> A run is in progress…</p>}
@@ -499,7 +497,7 @@ function RunBadge({ status }: { status: ProspectRun["status"] }) {
 
 function RunProgress({ run }: { run: ProspectRun }) {
   const steps = [
-    { label: "Scan", detail: `${run.queriesDone}/${run.queriesPlanned} searches`, done: run.status !== "scanning", active: run.status === "scanning" },
+    { label: "Scan", detail: `${run.queriesDone}/${run.queriesPlanned} ${run.mode === "live" ? "searches" : "sample queries"}`, done: run.status !== "scanning", active: run.status === "scanning" },
     { label: "Triage", detail: `${run.found} firms ranked`, done: run.status !== "scanning", active: false },
     { label: "Pipelines", detail: `${run.pipelinesDone}/${run.pipelinesPlanned} done`, done: ["done"].includes(run.status), active: run.status === "running_pipelines" },
   ];
@@ -515,7 +513,7 @@ function RunProgress({ run }: { run: ProspectRun }) {
           </span>
         </div>
       ))}
-      <span className={`text-[10px] font-black uppercase border-2 border-black px-1.5 py-0.5 ${run.mode === "live" ? "bg-[#CEEBFC]" : "bg-muted"}`}>{run.mode === "live" ? "Live research" : "Sample — fictional firms"}</span>
+      <span className={`text-[10px] font-black uppercase border-2 border-black px-1.5 py-0.5 ${run.mode === "live" ? "bg-[#CEEBFC]" : "bg-muted"}`}>{run.mode === "live" ? "Live research" : "Sample: fictional firms"}</span>
     </div>
   );
 }
@@ -527,8 +525,8 @@ function ShortlistSummary({ prospects, perPipeline }: { prospects: Prospect[]; p
     <div className="border-2 border-black bg-[#FFF6D6] px-3 py-2 text-[11px] font-bold flex gap-2">
       <AlertTriangle className="size-4 shrink-0" />
       <span>
-        {shortlisted} firm{shortlisted > 1 ? "s are" : " is"} shortlisted — the full pipeline was not run to save API calls.
-        Running all of them would use ~{shortlisted * perPipeline.tavily} web searches and ~{shortlisted * perPipeline.groq} AI calls. Run the ones worth it below.
+        {shortlisted} firm{shortlisted > 1 ? "s are" : " is"} shortlisted. The full pipeline was not run on them, to save API calls.
+        Running all of them would use {[perPipeline.tavily ? `~${shortlisted * perPipeline.tavily} web searches` : "", perPipeline.groq ? `~${shortlisted * perPipeline.groq} AI calls` : ""].filter(Boolean).join(" and ") || "no paid API calls"}. Run the ones worth it below.
       </span>
     </div>
   );
@@ -565,7 +563,7 @@ function ProspectRow({ p, busy, perPipeline, onRun, onDismiss, segmentLabel }: {
                 <ExternalLink className="size-3 shrink-0" /> {p.sourceTitle || p.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
               </a>
             ) : (
-              <span className="font-bold text-muted-foreground">No source — fictional sample event</span>
+              <span className="font-bold text-muted-foreground">No source: fictional sample event</span>
             )}
             <button type="button" onClick={() => setOpen((o) => !o)} className="font-black flex items-center gap-0.5">
               Why this firm {open ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}

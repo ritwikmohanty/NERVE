@@ -130,7 +130,7 @@ export function sanitizeConfig(input: Partial<AutopilotConfig>, current: Autopil
   if (!triggers.length) return { config: current, error: "Pick at least one trigger" };
   if (!segments.length) return { config: current, error: "Pick at least one segment" };
   if (!cities.length) return { config: current, error: "Pick at least one city" };
-  if (schedule !== "off" && !limits.scheduleAllowed) return { config: current, error: "Scheduling is turned off in the shared demo workspace — create your own workspace to run Autopilot on a schedule" };
+  if (schedule !== "off" && !limits.scheduleAllowed) return { config: current, error: "Scheduling is turned off in the shared demo workspace. Create your own workspace to run Autopilot on a schedule" };
 
   const firmsPerRun = Math.min(limits.maxFirmsPerRun, Math.max(1, Number.isFinite(firms) ? firms : 10));
   return {
@@ -263,18 +263,18 @@ function triage(c: Candidate): { score: number; reasons: string[] } {
   reasons.push(days === undefined ? `Date not stated (+${rec})` : `${days === 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} ago`} (+${rec})`);
   const inf = INFLUENCE[c.segment] ?? 8;
   score += inf;
-  reasons.push(`${SEGMENTS[c.segment].label} — specifier influence (+${inf})`);
+  reasons.push(`${SEGMENTS[c.segment].label}: specifier influence (+${inf})`);
   const hasCentre = PRIORITY_CITIES.includes(c.city);
   const cityPts = hasCentre ? 15 : CITY_COORDS[c.city] ? 8 : 3;
   score += cityPts;
-  reasons.push(hasCentre ? `AllHome centre in ${c.city} (+15)` : `${c.city} — nearest centre is in another city (+${cityPts})`);
+  reasons.push(hasCentre ? `AllHome centre in ${c.city} (+15)` : `${c.city}: nearest centre is in another city (+${cityPts})`);
   if (c.projectName) {
     score += 10;
     reasons.push(`Named project: ${c.projectName} (+10)`);
   }
   if (c.stage === "handover") {
     score -= 25;
-    reasons.push("Already built or opened — most materials are specified (−25)");
+    reasons.push("Already built or opened, so most materials are specified (−25)");
   }
   return { score: Math.max(0, Math.min(100, score)), reasons };
 }
@@ -285,7 +285,7 @@ const EXTRACT_SYSTEM = `You read Indian real-estate, architecture and design new
 Rules:
 - Only firms whose name appears verbatim in the given source text. Never add firms from memory.
 - Firm roles: "architect" (architecture practice), "id_firm" (interior design studio), "developer" (real-estate developer / hotel owner-developer), "contractor" (turnkey contractor / PMC / fit-out company).
-- "companyName" is the ORGANISATION (the developer, practice or contractor) — never a project, tower, hotel or building name. If a source names only the project and not the firm behind it, skip it.
+- "companyName" is the ORGANISATION (the developer, practice or contractor), never a project, tower, hotel or building name. If a source names only the project and not the firm behind it, skip it.
 - Only sources that report a specific, recent event. Skip directory/listing pages, generic company profiles, property portals and "top 10" lists.
 - Skip publications, award bodies, brokers/consultancies (JLL, CBRE, Anarock, Knight Frank), banks, government bodies, building-material brands, and individuals without a firm.
 - "event" is one factual sentence from the source about what happened (launch, signing, appointment, award, new office, land deal).
@@ -439,7 +439,7 @@ export async function startRun(orgId: string, role: AuthCtx["role"] | "schedule"
   const limits = limitsFor(role);
   const cfg = await getConfig(orgId);
   if (await activeRun(orgId)) throw new AutopilotError("An Autopilot run is already in progress for this workspace", 409);
-  if ((await runsToday(orgId)) >= limits.maxRunsPerDay) throw new AutopilotError(`Daily limit reached — ${limits.maxRunsPerDay} Autopilot runs per day for this workspace`, 429);
+  if ((await runsToday(orgId)) >= limits.maxRunsPerDay) throw new AutopilotError(`Daily limit reached: ${limits.maxRunsPerDay} Autopilot runs per day for this workspace`, 429);
 
   const live = !opts.sample && liveResearchEnabled() && tavilyEnabled() && llmEnabled();
   const usage = await usageToday();
@@ -496,7 +496,7 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
       if (candidates.length >= cfg.firmsPerRun * 1.5) break; // enough to triage from
       const u = await usageToday();
       if (u.remaining.tavily < 1 || u.remaining.groq < 1) {
-        await note(runId, "Stopped scanning early — the shared daily API budget ran out.");
+        await note(runId, "Stopped scanning early because the shared daily API budget ran out.");
         break;
       }
       (await scanQueryLive(q, cfg)).forEach(add);
@@ -505,11 +505,11 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
   } else {
     const plan = planQueries(cfg, limits.maxQueriesPerRun);
     for (let i = 0; i < plan.length; i++) {
-      await sleep(250); // sample scan is instant — pace it so progress is visible
+      await sleep(250); // sample scan is instant, pace it so progress is visible
       await prospectRunsCol().updateOne({ _id: runId }, { $inc: { queriesDone: 1 } });
     }
     scanSample(cfg).forEach(add);
-    await note(runId, "Sample scan — these firms and events are fictional. No API calls were made for the scan.");
+    await note(runId, "Sample scan: these firms and events are fictional. No API calls were made for the scan.");
   }
 
   // 2 ─ De-duplicate against this workspace, then triage
@@ -541,7 +541,7 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
   if (skippedExisting) await note(runId, `${skippedExisting} firm${skippedExisting > 1 ? "s" : ""} already ${skippedExisting > 1 ? "have" : "has"} a mission in this workspace and ${skippedExisting > 1 ? "were" : "was"} skipped.`);
   if (skippedRecent) await note(runId, `${skippedRecent} firm${skippedRecent > 1 ? "s were" : " was"} already found in the last 30 days and skipped.`);
   if (scored.length < cfg.firmsPerRun) {
-    await note(runId, `Found ${scored.length} of the ${cfg.firmsPerRun} firms requested${live ? " — widen the triggers, cities or look-back window to find more." : " (the sample pool is limited)."}`);
+    await note(runId, `Found ${scored.length} of the ${cfg.firmsPerRun} firms requested${live ? ". Widen the triggers, cities or look-back window to find more." : " (the sample pool is limited)."}`);
   }
 
   // 3 ─ Decide which firms get a full pipeline (budget-aware)
@@ -556,8 +556,8 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
   const k = Math.min(cfg.pipelinesPerRun, fresh.length, dailyLeft, affordable);
   if (k < Math.min(cfg.pipelinesPerRun, fresh.length)) {
     await note(runId, dailyLeft < cfg.pipelinesPerRun
-      ? `Only ${k} pipeline${k === 1 ? "" : "s"} started — this workspace's daily limit is ${limits.maxPipelinesPerDay} pipelines.`
-      : `Only ${k} pipeline${k === 1 ? "" : "s"} started — that's all today's shared API budget allows.`);
+      ? `Only ${k} pipeline${k === 1 ? "" : "s"} started because this workspace's daily limit is ${limits.maxPipelinesPerDay} pipelines.`
+      : `Only ${k} pipeline${k === 1 ? "" : "s"} started; that's all today's shared API budget allows.`);
   }
   const pipelineIds = new Set(fresh.slice(0, k).map((s) => nameKey(s.c.companyName)));
 
@@ -603,7 +603,7 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
     await prospectRunsCol().updateOne({ _id: runId }, { $inc: { pipelinesDone: 1 } });
   }
   await prospectRunsCol().updateOne({ _id: runId }, { $set: { status: "done", finishedAt: new Date().toISOString(), totalMs: Date.now() - started } });
-  console.log(`🛰️  Autopilot run ${runId} (${live ? "live" : "sample"}) — ${docs.length} firms, ${k} pipelines, ${Math.round((Date.now() - started) / 1000)}s`);
+  console.log(`🛰️  Autopilot run ${runId} (${live ? "live" : "sample"}), ${docs.length} firms, ${k} pipelines, ${Math.round((Date.now() - started) / 1000)}s`);
 }
 
 /** Run the full 10-agent pipeline for one prospect (called by runs and on demand). */
@@ -627,7 +627,7 @@ async function runProspectPipeline(prospectId: string, orgId: string, paced: boo
       projectStage: (p.stage as TargetedInput["projectStage"]) || undefined,
       projectName: p.projectName ? String(p.projectName) : undefined,
       projectCity: String(p.city),
-      additionalContext: `Found by Autopilot: ${p.triggerLabel} — ${p.detail}`,
+      additionalContext: `Found by Autopilot (${p.triggerLabel}): ${p.detail}`,
       origin: "autopilot",
       trigger,
     };
@@ -644,7 +644,7 @@ async function runProspectPipeline(prospectId: string, orgId: string, paced: boo
       { _id: prospectId },
       result
         ? { $set: { status: "pipeline_done", score: result.intent.compositeScore, tier: result.intent.tier, channel: result.strategy.primaryChannel, finishedAt: new Date().toISOString() } }
-        : { $set: { status: "error", error: "The pipeline failed — see the mission page for details" } }
+        : { $set: { status: "error", error: "The pipeline failed. See the mission page for details" } }
     );
   } catch (err) {
     await prospectsCol().updateOne({ _id: prospectId }, { $set: { status: "error", error: String(err).slice(0, 200) } });
@@ -658,12 +658,12 @@ export async function runProspectOnDemand(prospectId: string, orgId: string, rol
   const p = await prospectsCol().findOne({ _id: prospectId, orgId });
   if (!p) throw new AutopilotError("Firm not found", 404);
   if (!["shortlisted", "error"].includes(String(p.status))) throw new AutopilotError(`This firm is already ${String(p.status).replace(/_/g, " ")}`, 409);
-  if ((await pipelinesToday(orgId)) >= limits.maxPipelinesPerDay) throw new AutopilotError(`Daily limit reached — ${limits.maxPipelinesPerDay} Autopilot pipelines per day for this workspace`, 429);
+  if ((await pipelinesToday(orgId)) >= limits.maxPipelinesPerDay) throw new AutopilotError(`Daily limit reached: ${limits.maxPipelinesPerDay} Autopilot pipelines per day for this workspace`, 429);
   const live = p.dataSource === "live";
   const per = unitCosts(live).perPipeline;
   const usage = await usageToday();
   if (usage.remaining.tavily < per.tavily || usage.remaining.groq < per.groq) {
-    throw new AutopilotError(`Not enough API budget left today — one pipeline needs ~${per.tavily} web searches and ~${per.groq} AI calls (${usage.remaining.tavily} searches and ${usage.remaining.groq} AI calls left).`, 429);
+    throw new AutopilotError(`Not enough API budget left today. One pipeline needs ~${per.tavily} web searches and ~${per.groq} AI calls (${usage.remaining.tavily} searches and ${usage.remaining.groq} AI calls left).`, 429);
   }
   await prospectsCol().updateOne({ _id: prospectId }, { $set: { status: "queued" } });
   void enqueue(() => runProspectPipeline(prospectId, orgId, live));
@@ -734,7 +734,7 @@ export async function seedDemoAutopilot(orgId: string): Promise<void> {
     config: { triggers: cfg.triggers, segments: cfg.segments, cities: cfg.cities, firmsPerRun: cfg.firmsPerRun, pipelinesPerRun: cfg.pipelinesPerRun, lookbackDays: cfg.lookbackDays },
     queriesPlanned: 4, queriesDone: 4, found: docs.length, pipelinesPlanned: done, pipelinesDone: done,
     notes: [
-      "Sample scan — these firms and events are fictional. No API calls were made for the scan.",
+      "Sample scan: these firms and events are fictional. No API calls were made for the scan.",
       `Full pipelines ran for the top ${done} firms only; the rest are shortlisted to save API calls. Running all ${docs.length} live would need ~${4 + docs.length * 2} web searches and ~${4 + docs.length * 7} AI calls, versus ~${4 + done * 2} and ~${4 + done * 7} for the top ${done}.`,
     ],
     startedAt, finishedAt: new Date(Date.now() - 2 * 3600_000 + 90_000).toISOString(),

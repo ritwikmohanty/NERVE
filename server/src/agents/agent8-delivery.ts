@@ -23,7 +23,7 @@ async function sendViaResend(
   const now = new Date().toISOString();
 
   if (config.simulationMode || !config.resendApiKey) {
-    return simulateDelivery(lead.id, touch.touchNumber, "email", "Email simulated — Resend");
+    return simulateDelivery(lead.id, touch.touchNumber, "email", "Email simulated (Resend)");
   }
 
   try {
@@ -59,7 +59,7 @@ async function sendViaResend(
       };
     }
 
-    console.warn(`Resend API error: ${response.status} — ${data.message || "unknown"}`);
+    console.warn(`Resend API error: ${response.status}, ${data.message || "unknown"}`);
     return {
       leadId: lead.id,
       touchNumber: touch.touchNumber,
@@ -92,7 +92,7 @@ async function sendViaHeyReach(
   const now = new Date().toISOString();
 
   if (config.simulationMode || !config.heyreachApiKey) {
-    return simulateDelivery(lead.id, touch.touchNumber, "linkedin_dm", "LinkedIn DM simulated — HeyReach");
+    return simulateDelivery(lead.id, touch.touchNumber, "linkedin_dm", "LinkedIn DM simulated (HeyReach)");
   }
 
   try {
@@ -122,7 +122,7 @@ async function sendViaHeyReach(
         status: "queued",
         sentAt: now,
         simulationMode: false,
-        rawApiResponse: { note: "No HeyReach campaigns configured — message queued for manual send" },
+        rawApiResponse: { note: "No HeyReach campaigns configured; message queued for manual send" },
       };
     }
 
@@ -203,7 +203,7 @@ async function sendViaAisensy(
   const now = new Date().toISOString();
 
   if (config.simulationMode || !config.aisensyApiKey) {
-    return simulateDelivery(lead.id, touch.touchNumber, "whatsapp", "WhatsApp simulated — AiSensy");
+    return simulateDelivery(lead.id, touch.touchNumber, "whatsapp", "WhatsApp simulated (AiSensy)");
   }
 
   try {
@@ -217,7 +217,7 @@ async function sendViaAisensy(
         status: "failed",
         sentAt: now,
         simulationMode: false,
-        rawApiResponse: { error: "AISENSY_CAMPAIGN_NAME not set — create an API campaign with an approved template in AiSensy" },
+        rawApiResponse: { error: "AISENSY_CAMPAIGN_NAME not set. Create an API campaign with an approved template in AiSensy" },
       };
     }
     const phone = (lead.contactPhone || "").replace(/[^\d]/g, "");
@@ -414,7 +414,7 @@ export async function runDeliveryAgent(
 
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
 
-    console.log(`✅ Agent 8 complete in ${durationMs}ms — ${summary}`);
+    console.log(`✅ Agent 8 complete in ${durationMs}ms, ${summary}`);
     return results;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";

@@ -14,8 +14,8 @@ interface Props {
 
 const REPLIES: Array<{ label: string; icon: React.ReactNode; body: string; bg: string; textColor: string }> = [
   { label: "Wants a visit", icon: <MapPin className="size-4" />, body: "Lovely! Can my team come by your experience centre next week to see the samples in person?", bg: "bg-[#0A66C2]", textColor: "text-white" },
-  { label: "Interested", icon: <ThumbsUp className="size-4" />, body: "Sounds great — please send pricing and lead times, and let's schedule a quick call this week.", bg: "bg-[#599D77]", textColor: "text-white" },
-  { label: "Later", icon: <PauseCircle className="size-4" />, body: "Thanks, swamped this month — can you follow up in a few weeks?", bg: "bg-white", textColor: "text-black" },
+  { label: "Interested", icon: <ThumbsUp className="size-4" />, body: "Sounds great. Please send pricing and lead times, and let's schedule a quick call this week.", bg: "bg-[#599D77]", textColor: "text-white" },
+  { label: "Later", icon: <PauseCircle className="size-4" />, body: "Thanks, but we're swamped this month. Can you follow up in a few weeks?", bg: "bg-white", textColor: "text-black" },
   { label: "Not interested", icon: <ThumbsDown className="size-4" />, body: "Not interested, thanks. Please remove me from your list.", bg: "bg-[#EA435F]", textColor: "text-white" },
   { label: "No reply", icon: <Clock className="size-4" />, body: "", bg: "bg-secondary", textColor: "text-black" },
 ];
@@ -105,11 +105,11 @@ export default function SimulateReply({ leadId, channel = "email", disabled, onS
             <p className="text-xs text-black font-mono leading-relaxed border-2 border-black p-3 bg-muted/20">{result.reasoning}</p>
             {result.visit && (
               <p className="text-xs font-black border-2 border-black bg-[#CEEBFC] px-3 py-2 flex items-center gap-2">
-                <MapPin className="size-4" /> Visit booked — {result.visit.brandName}, {result.visit.centreCity} ·{" "}
+                <MapPin className="size-4" /> Visit booked: {result.visit.brandName}, {result.visit.centreCity} ·{" "}
                 {new Date(result.visit.scheduledAt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST
               </p>
             )}
-            <p className="text-[10px] font-bold text-muted-foreground">Agent 10 has updated this workspace's scoring weights — see Analytics.</p>
+            <p className="text-[10px] font-bold text-muted-foreground">Agent 10 has updated this workspace's scoring weights. See Analytics.</p>
           </motion.div>
         )}
       </AnimatePresence>

@@ -17,6 +17,7 @@ import type {
 
 const AGENT_NUMBER = 5;
 const AGENT_NAME = "Strategy Commander";
+const CH: Record<string, string> = { whatsapp: "WhatsApp", email: "Email", linkedin_dm: "LinkedIn DM" };
 
 function selectChannels(lead: EnrichedLead, signals: SignalBundle, intent: IntentScore): { primary: OutreachChannel; secondary?: OutreachChannel; decision: StrategyDecision } {
   const seg = lead.segment || "architect";
@@ -30,7 +31,7 @@ function selectChannels(lead: EnrichedLead, signals: SignalBundle, intent: Inten
   if ((seg === "architect" || seg === "id_firm" || seg === "contractor" || seg === "homeowner") && hasPhone) {
     primary = "whatsapp";
     secondary = hasEmail ? "email" : hasLinkedIn ? "linkedin_dm" : undefined;
-    reasoning = `${SEGMENTS[seg].label}s in India run projects on WhatsApp — sharing finish photos and site updates there is the norm, and it's where a quick "can we send samples?" gets answered.`;
+    reasoning = `${SEGMENTS[seg].label}s in India run projects on WhatsApp, sharing finish photos and site updates there is normal, and it's where a quick "can we send samples?" gets answered.`;
   } else if (seg === "developer" && hasEmail) {
     primary = "email";
     secondary = hasLinkedIn ? "linkedin_dm" : hasPhone ? "whatsapp" : undefined;
@@ -38,11 +39,11 @@ function selectChannels(lead: EnrichedLead, signals: SignalBundle, intent: Inten
   } else if (hasLinkedIn && signals.linkedinActivityScore > 60) {
     primary = "linkedin_dm";
     secondary = hasEmail ? "email" : undefined;
-    reasoning = `${lead.contactName} is active on LinkedIn (${signals.linkedinActivityScore}/100) — a DM referencing their published work lands well.`;
+    reasoning = `${lead.contactName} is active on LinkedIn (${signals.linkedinActivityScore}/100), so a DM that references their published work lands well.`;
   } else if (!hasEmail && !hasPhone && !hasLinkedIn) {
     primary = seg === "developer" ? "email" : "whatsapp";
     secondary = seg === "developer" ? "linkedin_dm" : "email";
-    reasoning = `No verified contact details are available for ${lead.companyName} yet (they are never guessed). The drafts are ready — add the principal's ${primary === "whatsapp" ? "WhatsApp number" : "email"} to send them.`;
+    reasoning = `No verified contact details are available for ${lead.companyName} yet (they are never guessed). The drafts are ready. Add the principal's ${primary === "whatsapp" ? "WhatsApp number" : "email"} to send them.`;
   } else {
     primary = hasEmail ? "email" : "whatsapp";
     secondary = undefined;
@@ -53,7 +54,7 @@ function selectChannels(lead: EnrichedLead, signals: SignalBundle, intent: Inten
     primary,
     secondary,
     decision: {
-      decision: `${primary.replace(/_/g, " ")} as primary${secondary ? `, ${secondary.replace(/_/g, " ")} as follow-up` : ""}`,
+      decision: `${CH[primary] || primary} first${secondary ? `, then ${CH[secondary] || secondary} as the follow-up` : ""}`,
       reasoning,
       factors: [`Segment: ${SEGMENTS[seg].label}`, `Intent: ${intent.tier} (${intent.compositeScore}/100)`, hasPhone ? "WhatsApp-reachable" : "No phone", hasEmail ? "Email available" : "No email"],
     },
@@ -145,22 +146,22 @@ export async function runStrategyCommanderAgent(
       toneDecision,
       {
         decision: `Bundle: ${bundle.headline}`,
-        reasoning: bundle.items.map((i) => `${i.brandName} — ${i.reason}`).join(" | "),
+        reasoning: bundle.items.map((i) => `${i.brandName}: ${i.reason}`).join(" | "),
         factors: [`Stage: ${STAGES[stageIndex(stage)].label}`, `${bundle.vendorsReplaced} vendors consolidated into one AllHome relationship`],
       },
       {
         decision: `Stage-timed cadence: Day 0 / +${followUpDays} / +${t3Days}`,
         reasoning: bundle.nextBrand
           ? `Touch 3 is timed to land ~1 week before ${bundle.nextBrand.brandName}'s specification window opens (~${bundle.nextBrand.weeksUntil} weeks out)`
-          : "No upcoming brand windows — standard follow-up spacing",
+          : "No upcoming brand windows, so standard follow-up spacing",
         factors: cadence.map((c) => `T${c.touchNumber}: ${c.channel} · ${c.focusBrands?.join(", ")}`),
       },
       {
         decision: experienceCentre ? `Invite to ${experienceCentre.brandName} experience centre, ${experienceCentre.centre.city}` : "No experience centre nearby",
         reasoning: experienceCentre
           ? experienceCentre.sameCity
-            ? "Same-city centre — touching the finishes converts specifiers far better than PDFs"
-            : `Nearest centre ~${experienceCentre.distanceKm} km away — offer a sample kit plus a visit during their next trip`
+            ? "Same-city centre. Seeing the finishes in person persuades specifiers more than a PDF"
+            : `Nearest centre ~${experienceCentre.distanceKm} km away. Offer a sample kit plus a visit during their next trip`
           : "Offer sample kits instead",
         factors: experienceCentre ? [experienceCentre.centre.address] : [],
       },
@@ -186,7 +187,7 @@ export async function runStrategyCommanderAgent(
     const summary = `${primary}${secondary ? " + " + secondary : ""} | ${bundle.items.map((i) => i.brandName).join(", ")} | T3 at +${t3Days}d`;
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("strategy_update", lead.id, strategy);
-    console.log(`✅ Agent 5 complete in ${Date.now() - start}ms — ${summary}`);
+    console.log(`✅ Agent 5 complete in ${Date.now() - start}ms, ${summary}`);
     return strategy;
   } catch (error) {
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");

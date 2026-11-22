@@ -43,6 +43,8 @@ function simulateSignals(lead: EnrichedLead): SearchResult[] {
   const firm = lead.companyName;
   const city = lead.projectCity || "Mumbai";
   const project = lead.projectName || "a new premium project";
+  const where = lead.projectName?.includes(",") ? "" : ` in ${city}`;
+  const poss = firm.endsWith("s") ? `${firm}'` : `${firm}'s`;
   const type = lead.projectType ? PROJECT_TYPES[lead.projectType].toLowerCase() : "premium project";
   const hash = Math.abs(firm.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0));
   const pick = <T>(arr: T[], o = 0): T => arr[(hash + o) % arr.length];
@@ -50,22 +52,22 @@ function simulateSignals(lead: EnrichedLead): SearchResult[] {
 
   const pools: Record<string, Array<{ title: string; content: string }>> = {
     launch: [
-      { title: `${firm} unveils ${project} in ${city}`, content: `${firm} has unveiled ${project}, a ${type} in ${city}. Early drawings show a facade-led design with large glazed openings and a curated material palette, with construction slated to begin this quarter.` },
+      { title: `${firm} unveils ${project}${where}`, content: `${firm} has unveiled ${project}, a ${type}${where}. Early drawings show a facade-led design with large glazed openings and a curated material palette, with construction slated to begin this quarter.` },
       { title: `New RERA registration linked to ${firm}: ${type} in ${city}`, content: `A new RERA registration associated with ${firm} lists a ${type} in ${city}. The filing indicates premium specifications for envelope, lighting and bath fittings.` },
     ],
     award: [
-      { title: `${firm} shortlisted for a residential design award`, content: `${firm}'s recent ${type} work has been shortlisted in an industry design awards programme, recognised for material honesty, daylighting and detailing.` },
-      { title: `${firm}'s latest project featured in a leading design publication`, content: `A design publication featured ${firm}'s recent project, highlighting its parametric screen facade, warm architectural lighting and bespoke joinery.` },
+      { title: `${firm} shortlisted for a residential design award`, content: `${poss} recent ${type} work has been shortlisted in an industry design awards programme, recognised for material honesty, daylighting and detailing.` },
+      { title: `${poss} latest project featured in a design publication`, content: `A design publication featured ${poss} recent project, highlighting its parametric screen facade, warm architectural lighting and bespoke joinery.` },
     ],
     hiring: [
       { title: `${firm} is hiring architects and interior designers in ${city}`, content: `${firm} has posted multiple openings for project architects and interior designers in ${city}, signalling a growing project pipeline over the next 12 months.` },
     ],
     possession: [
-      { title: `${project}: interiors phase begins as structure tops out`, content: `The structure for ${project} has topped out and the project is moving into MEP and interiors — the window when lighting, bath and hardware get specified.` },
+      { title: `${project}: interiors phase begins as structure tops out`, content: `The structure for ${project} has topped out and the project is moving into MEP and interiors. This is when lighting, bath and hardware get specified.` },
       { title: `Possession timeline announced for ${project}`, content: `Handover for ${project} is planned within the next few quarters; fit-out and finishing packages are being tendered.` },
     ],
     exhibition: [
-      { title: `${firm} team visited the Design POV exhibition`, content: `Members of ${firm} were seen at the Design POV exhibition exploring facade systems, architectural lighting and luxury bathware — a strong sign of active material sourcing.` },
+      { title: `${firm} team visited the Design POV exhibition`, content: `Members of ${firm} were seen at the Design POV exhibition exploring facade systems, architectural lighting and luxury bathware, which points to active material sourcing.` },
     ],
     office: [
       { title: `${firm} opens a new studio in ${city}`, content: `${firm} has opened a new studio in ${city} to serve a growing book of premium residential and hospitality clients.` },
@@ -169,6 +171,7 @@ export async function runSignalScoutAgent(lead: EnrichedLead): Promise<SignalBun
           sourceUrl: sig.url,
           dateDetected: sig.date || new Date().toISOString(),
           recencyDays: sig.date ? recencyDays : 60,
+          dateUnknown: !sig.date,
           strength: strengthOf[category] || "LOW",
           recencyWeight: sig.date ? weight : 0.4,
         };
@@ -186,8 +189,9 @@ export async function runSignalScoutAgent(lead: EnrichedLead): Promise<SignalBun
         category,
         title: r.title,
         description: r.content.slice(0, 300),
-        source: safeHostname(r.url),
-        sourceUrl: r.url,
+        // Fictional firms get fictional signals: never attribute them to a real website
+        source: lead.dataSource === "simulated" ? "Sample data (fictional)" : safeHostname(r.url),
+        sourceUrl: lead.dataSource === "simulated" ? undefined : r.url,
         dateDetected: r.published_date || new Date().toISOString(),
         recencyDays,
         strength,
@@ -223,9 +227,9 @@ export async function runSignalScoutAgent(lead: EnrichedLead): Promise<SignalBun
         id: nanoid(),
         category: "linkedin_activity",
         title: `${lead.contactName} actively shares project work on LinkedIn / Instagram`,
-        description: `Social activity score ${linkedinActivityScore}/100 — regularly posts site progress and material choices.`,
-        source: "linkedin.com",
-        sourceUrl: lead.contactLinkedIn,
+        description: `Social activity score ${linkedinActivityScore}/100. Regularly posts site progress and material choices.`,
+        source: "Sample data (fictional)",
+        sourceUrl: undefined,
         dateDetected: new Date().toISOString(),
         recencyDays: 0,
         strength: linkedinActivityScore > 75 ? "HIGH" : "MEDIUM",
@@ -246,10 +250,10 @@ export async function runSignalScoutAgent(lead: EnrichedLead): Promise<SignalBun
       await signalsCol().insertMany(signals.map((s) => ({ ...s, _id: s.id, leadId: lead.id, createdAt: new Date().toISOString() })));
     }
 
-    const summary = `Found ${signals.length} signals — Top: ${bundle.topSignal?.title || "None"} (${bundle.overallSignalStrength})`;
+    const summary = `Found ${signals.length} signals. Top: ${bundle.topSignal?.title || "None"} (${bundle.overallSignalStrength})`;
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("signal_update", lead.id, bundle);
-    console.log(`✅ Agent 2 complete in ${Date.now() - start}ms — ${summary}`);
+    console.log(`✅ Agent 2 complete in ${Date.now() - start}ms, ${summary}`);
     return bundle;
   } catch (error) {
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");

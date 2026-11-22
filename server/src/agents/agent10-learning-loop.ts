@@ -13,6 +13,8 @@ import { DIMENSION_LABELS } from "../types/index.js";
 
 const AGENT_NUMBER = 10;
 const AGENT_NAME = "Learning Loop";
+const CHANNEL: Record<string, string> = { whatsapp: "WhatsApp", email: "Email", linkedin_dm: "LinkedIn DM" };
+const ch = (c?: string) => (c ? CHANNEL[c] || c : "");
 
 // ─── Weight Adjustment Rules ───
 // Based on response outcome, adjust the scoring weights that contributed to
@@ -33,25 +35,25 @@ const ADJUSTMENT_RULES: AdjustmentRule[] = [
     sentiment: "positive",
     direction: "reinforce",
     magnitude: 0.05,
-    description: "Positive response — reinforcing dimensions that predicted high intent",
+    description: "Positive response: reinforcing dimensions that predicted high intent",
   },
   {
     sentiment: "neutral",
     direction: "slight_dampen",
     magnitude: 0.01,
-    description: "Neutral response — minor reduction in confidence of top predictors",
+    description: "Neutral response: minor reduction in confidence of top predictors",
   },
   {
     sentiment: "negative",
     direction: "dampen",
     magnitude: 0.03,
-    description: "Negative response — dampening dimensions that predicted high intent incorrectly",
+    description: "Negative response: dampening dimensions that predicted high intent incorrectly",
   },
   {
     sentiment: "no_reply",
     direction: "slight_dampen",
     magnitude: 0.02,
-    description: "No reply — moderate reduction in confidence of scoring dimensions",
+    description: "No reply: moderate reduction in confidence of scoring dimensions",
   },
 ];
 
@@ -146,38 +148,38 @@ function generateChannelHeuristics(
 
   if (response.sentiment === "positive") {
     heuristics.push(
-      `✅ ${strategy.primaryChannel} delivered a positive response — this channel is effective for leads in the ${strategy.timezone} timezone`
+      `✅ ${ch(strategy.primaryChannel)} delivered a positive response. This channel works for leads in the ${strategy.timezone} timezone`
     );
     if (strategy.toneFramework) {
       heuristics.push(
-        `✅ "${strategy.toneFramework.replace(/_/g, " ")}" tone framework generated positive engagement — reinforcing as preferred for similar persona types`
+        `✅ "${strategy.toneFramework.replace(/_/g, " ")}" tone framework generated positive engagement. Reinforcing it as preferred for similar persona types`
       );
     }
     if (strategy.secondaryChannel) {
       heuristics.push(
-        `📊 ${strategy.secondaryChannel} was designated as backup but wasn't needed — primary channel was sufficient`
+        `📊 ${ch(strategy.secondaryChannel)} was designated as backup but wasn't needed; the primary channel was enough`
       );
     }
   } else if (response.sentiment === "negative") {
     heuristics.push(
-      `⚠️ ${strategy.primaryChannel} led to negative response — consider ${strategy.secondaryChannel || "alternative channels"} as primary for similar lead profiles (${strategy.timezone} timezone, same seniority level)`
+      `⚠️ ${ch(strategy.primaryChannel)} led to a negative response. Consider ${ch(strategy.secondaryChannel) || "alternative channels"} as primary for similar lead profiles (${strategy.timezone} timezone, same seniority level)`
     );
     heuristics.push(
-      `⚠️ "${strategy.toneFramework.replace(/_/g, " ")}" tone framework may have been too ${strategy.toneFramework === "growth_urgency" ? "aggressive" : strategy.toneFramework === "challenger" ? "provocative" : "direct"} for this persona — flag for manual review`
+      `⚠️ "${strategy.toneFramework.replace(/_/g, " ")}" tone framework may have been too ${strategy.toneFramework === "growth_urgency" ? "aggressive" : strategy.toneFramework === "challenger" ? "provocative" : "direct"} for this persona. Flagged for manual review`
     );
     heuristics.push(
-      `🔴 Lead marked as do-not-contact — removing from all active cadences and future campaigns`
+      `🔴 Lead marked do-not-contact and removed from all active cadences and future campaigns`
     );
   } else if (response.sentiment === "no_reply") {
     heuristics.push(
-      `📊 No reply via ${strategy.primaryChannel} after Touch 1 — ${strategy.secondaryChannel ? `recommend switching to ${strategy.secondaryChannel} for Touch 2` : "consider adding a secondary channel (LinkedIn DM or WhatsApp) for multi-channel approach"}`
+      `📊 No reply via ${ch(strategy.primaryChannel)} after Touch 1. ${strategy.secondaryChannel ? `Recommend switching to ${ch(strategy.secondaryChannel)} for Touch 2` : "Consider adding a secondary channel (LinkedIn DM or WhatsApp) for multi-channel approach"}`
     );
     heuristics.push(
-      `⏰ Cadence timing (${strategy.timezone}, first send: ${strategy.sendTimestamp.slice(0, 10)}) may need adjustment — test sending at different times for this timezone`
+      `⏰ Cadence timing (${strategy.timezone}, first send: ${strategy.sendTimestamp.slice(0, 10)}) may need adjustment. Test sending at different times for this timezone`
     );
   } else {
     heuristics.push(
-      `📊 Neutral response via ${strategy.primaryChannel} — continue cadence with Touch 2 via ${strategy.cadence[1]?.channel || strategy.primaryChannel} as planned`
+      `📊 Neutral response via ${ch(strategy.primaryChannel)}. Continue the cadence with Touch 2 via ${ch(strategy.cadence[1]?.channel || strategy.primaryChannel)} as planned`
     );
   }
 
@@ -197,37 +199,37 @@ function generateToneRules(
 
   if (response.sentiment === "positive") {
     rules.push(
-      `📗 ${persona.archetypeLabel} persona + "${toneLabel}" tone = EFFECTIVE — recording as preferred combination (confidence: ${Math.round(persona.confidence * 100)}%)`
+      `📗 ${persona.archetypeLabel} persona + "${toneLabel}" tone = EFFECTIVE. Recorded as a preferred combination (confidence: ${Math.round(persona.confidence * 100)}%)`
     );
     rules.push(
-      `📗 Traits that responded well: ${persona.traits.slice(0, 3).join(", ")} — prioritize these in future persona matching`
+      `📗 Traits that responded well: ${persona.traits.slice(0, 3).join(", ")}. Prioritise these in future persona matching`
     );
   } else if (response.sentiment === "negative") {
     rules.push(
-      `📕 ${persona.archetypeLabel} persona + "${toneLabel}" tone = INEFFECTIVE — flagging this combination to avoid in future`
+      `📕 ${persona.archetypeLabel} persona + "${toneLabel}" tone = INEFFECTIVE. Flagging this combination to avoid in future`
     );
     // Suggest alternative tones with reasoning
     const alternatives: Record<string, { tone: string; reason: string }> = {
-      insight_led: { tone: "peer_problem", reason: "Switch from strategic-level to technical peer-level messaging — may resonate better with this persona" },
-      peer_problem: { tone: "relationship_first", reason: "Technical approach was rejected — try building relationship first before discussing solutions" },
-      challenger: { tone: "insight_led", reason: "Challenger tone was too provocative — dial back to insight-led, data-driven approach" },
-      relationship_first: { tone: "peer_problem", reason: "Relationship approach didn't land — try being more specific about their technical pain points" },
-      growth_urgency: { tone: "relationship_first", reason: "Urgency-based approach felt pushy — switch to low-pressure, relationship-first messaging" },
+      insight_led: { tone: "peer_problem", reason: "Switch from strategic-level to technical peer-level messaging, which may suit with this persona" },
+      peer_problem: { tone: "relationship_first", reason: "Technical approach was rejected. Try building relationship first before discussing solutions" },
+      challenger: { tone: "insight_led", reason: "Challenger tone was too provocative. Dial back to an insight-led, data-driven approach" },
+      relationship_first: { tone: "peer_problem", reason: "Relationship approach didn't land. Try being more specific about their technical pain points" },
+      growth_urgency: { tone: "relationship_first", reason: "Urgency-based approach felt pushy. Switch to low-pressure, relationship-first messaging" },
     };
     const alt = alternatives[strategy.toneFramework];
     if (alt) {
-      rules.push(`📕 Recommendation: Use "${alt.tone.replace(/_/g, " ")}" for ${persona.archetypeLabel} personas instead — ${alt.reason}`);
+      rules.push(`📕 Recommendation: Use "${alt.tone.replace(/_/g, " ")}" for ${persona.archetypeLabel} personas instead. ${alt.reason}`);
     }
     rules.push(
       `📕 Messaging to avoid for this persona type: ${persona.avoidInMessaging.join(", ")}`
     );
   } else if (response.sentiment === "neutral") {
     rules.push(
-      `📒 ${persona.archetypeLabel} + "${toneLabel}" = INCONCLUSIVE — maintain current approach for Touch 2 but increase specificity`
+      `📒 ${persona.archetypeLabel} + "${toneLabel}" = INCONCLUSIVE. Keep the current approach for Touch 2 but increase specificity`
     );
   } else {
     rules.push(
-      `📒 No reply with "${toneLabel}" tone for ${persona.archetypeLabel} persona — insufficient data to adjust tone rules. Continue cadence.`
+      `📒 No reply with "${toneLabel}" tone for ${persona.archetypeLabel} persona. Not enough data to adjust tone rules. Continue cadence.`
     );
   }
 
@@ -292,7 +294,7 @@ export async function runLearningLoopAgent(
       updatedAt: new Date().toISOString(),
     };
     if (strategy.bundle && response.sentiment === "positive") {
-      heuristicUpdates.push(`🧩 Bundle "${strategy.bundle.items.map((i) => i.brandName).join(" + ")}" converted for ${segment || "this"} segment — boosting it for similar projects`);
+      heuristicUpdates.push(`🧩 Bundle "${strategy.bundle.items.map((i) => i.brandName).join(" + ")}" converted for ${segment || "this"} segment. Boosting it for similar projects`);
     }
 
     // 5. Persist learning history
@@ -317,7 +319,7 @@ export async function runLearningLoopAgent(
     sseManager.emitAgentStatus(response.leadId, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("learning_update", response.leadId, result);
 
-    console.log(`✅ Agent 10 complete in ${durationMs}ms — ${summary}`);
+    console.log(`✅ Agent 10 complete in ${durationMs}ms, ${summary}`);
     return result;
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Unknown error";

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
-import type { Lead } from "@/lib/types";
+import { STAGE_LABEL, type Lead } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                                 )}
                                 {lead.contactTitle && <span className="uppercase hidden sm:inline">{lead.contactTitle}</span>}
                                 {lead.projectName && <span className="uppercase truncate">· {lead.projectName}</span>}
-                                {lead.projectStage && <span className="uppercase hidden sm:inline">· {lead.projectStage} stage</span>}
+                                {lead.projectStage && <span className="uppercase hidden sm:inline">· {STAGE_LABEL[lead.projectStage] || lead.projectStage} stage</span>}
                                 {lead.createdAt && (
                                   <span className="ml-auto text-xs font-black uppercase text-black">
                                     {new Date(lead.createdAt).toLocaleDateString()}

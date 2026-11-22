@@ -100,7 +100,7 @@ export function StageRadar({ radar, brands }: { radar: RadarEntry[]; brands?: Br
       </div>
       <div className="flex flex-wrap gap-3 text-[10px] font-bold text-muted-foreground">
         <span className="flex items-center gap-1"><span className="size-2.5 bg-[#599D77] border border-black" /> Window open</span>
-        <span className="flex items-center gap-1"><span className="size-2.5 bg-secondary border border-black" /> Upcoming — pre-specify</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 bg-secondary border border-black" /> Upcoming: pre-specify</span>
         <span className="flex items-center gap-1"><Clock className="size-3" /> Order-by dates in the spec sheet</span>
         <span className="flex items-center gap-1"><ArrowRight className="size-3" /> Touch 3 is timed to the next window</span>
       </div>

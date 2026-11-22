@@ -289,11 +289,11 @@ export default function PipelinePage() {
         <div className="ml-3">
           {pipelineComplete ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-black uppercase border-2 border-black bg-[#599D77] text-white shadow-[2px_2px_0_0_#000]">
-              <CheckCircle2 className="size-3.5" /> Complete — {completedCount}/10 Agents
+              <CheckCircle2 className="size-3.5" /> Complete: {completedCount}/10 agents
             </span>
           ) : pipelineError ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-black uppercase border-2 border-black bg-destructive text-white shadow-[2px_2px_0_0_#000]">
-              <AlertTriangle className="size-3.5" /> Failed — {completedCount}/10 Agents
+              <AlertTriangle className="size-3.5" /> Failed: {completedCount}/10 agents
             </span>
           ) : isRunning ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-black uppercase border-2 border-black bg-secondary text-black shadow-[2px_2px_0_0_#000]">
@@ -301,7 +301,7 @@ export default function PipelinePage() {
                 <span className="animate-ping absolute inline-flex h-full w-full bg-primary opacity-75" />
                 <span className="relative inline-flex size-2 bg-primary" />
               </span>
-              Running — {completedCount}/10
+              Running: {completedCount}/10
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-black uppercase border-2 border-black bg-white text-black shadow-[2px_2px_0_0_#000]">
@@ -402,7 +402,7 @@ export default function PipelinePage() {
                   {String(
                     (lead as { error?: string } | undefined)?.error ||
                       (events.find((e) => e.type === "error")?.data as { error?: string } | undefined)?.error ||
-                      "An agent failed — check the server logs."
+                      "An agent failed. Check the server logs."
                   )}
                 </p>
               </div>
@@ -422,7 +422,7 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={1}
             title="Lead Ingestion & Enrichment"
-            subtitle={o1.dataSource === "live" ? "Agent 1 — Researches the real firm on the web and news, extracts a sourced profile, deduplicates" : "Agent 1 — Accepts lead input, enriches it, validates & deduplicates"}
+            subtitle={o1.dataSource === "live" ? "Agent 1: researches the real firm on the web and in the news, extracts a sourced profile and deduplicates" : "Agent 1: takes the lead input, enriches it, validates and deduplicates"}
             icon={<Users className="size-5" />}
             status={phaseStatus([1], runs, live)}
             accentColor="emerald"
@@ -442,12 +442,12 @@ export default function PipelinePage() {
                 {/* Firm / project profile */}
                 <OutcomeCard title={o1.segment === "homeowner" ? "Homeowner Profile" : "Firm Profile"}>
                   <div className="grid sm:grid-cols-2 gap-x-6">
-                    <OutcomeRow icon={<Building2 className="size-3" />} label={o1.segment === "homeowner" ? "Household" : "Firm"} value={String(o1.companyName || "—")} accent="text-foreground" />
-                    <OutcomeRow icon={<Briefcase className="size-3" />} label="Segment" value={String(o1.firmType || o1.industry || "—")} />
-                    <OutcomeRow icon={<MapPin className="size-3" />} label="Based in" value={String(o1.headquarters || "—")} />
-                    <OutcomeRow icon={<Users className="size-3" />} label="Team size" value={String(o1.companySize || "—")} />
-                    <OutcomeRow icon={<TrendingUp className="size-3" />} label="Projects / year" value={String(o1.projectsPerYear ?? "—")} />
-                    <OutcomeRow icon={<Globe className="size-3" />} label="Domain" value={String(o1.companyDomain || "—")} mono />
+                    <OutcomeRow icon={<Building2 className="size-3" />} label={o1.segment === "homeowner" ? "Household" : "Firm"} value={String(o1.companyName || "-")} accent="text-foreground" />
+                    <OutcomeRow icon={<Briefcase className="size-3" />} label="Segment" value={String(o1.firmType || o1.industry || "-")} />
+                    <OutcomeRow icon={<MapPin className="size-3" />} label="Based in" value={String(o1.headquarters || "-")} />
+                    <OutcomeRow icon={<Users className="size-3" />} label="Team size" value={String(o1.companySize || "-")} />
+                    <OutcomeRow icon={<TrendingUp className="size-3" />} label="Projects / year" value={String(o1.projectsPerYear ?? "-")} />
+                    <OutcomeRow icon={<Globe className="size-3" />} label="Domain" value={String(o1.companyDomain || "-")} mono />
                   </div>
                   {Array.isArray(o1.specialties) && o1.specialties.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-3">
@@ -461,28 +461,28 @@ export default function PipelinePage() {
 
                 <OutcomeCard title={o1.projectAssumed ? "Project (planning assumption)" : "Current Project"}>
                   <div className="grid sm:grid-cols-2 gap-x-6">
-                    <OutcomeRow icon={<Target className="size-3" />} label="Project" value={String(o1.projectName || (o1.projectAssumed ? "Not provided" : "—"))} accent="text-foreground" />
-                    <OutcomeRow icon={<Building2 className="size-3" />} label="Type" value={`${String(o1.projectType || "—").replace(/_/g, " ")}${o1.projectAssumed ? " (assumed)" : ""}`} />
-                    <OutcomeRow icon={<Clock className="size-3" />} label="Stage" value={`${String(o1.projectStage || "—")}${o1.projectAssumed ? " (assumed)" : ""}`} />
-                    <OutcomeRow icon={<DollarSign className="size-3" />} label="Value" value={`${o1.projectValue || "—"}${o1.budgetTier ? ` · ${o1.budgetTier}` : ""}`} />
-                    <OutcomeRow icon={<MapPin className="size-3" />} label="City" value={String(o1.projectCity || "—")} />
+                    <OutcomeRow icon={<Target className="size-3" />} label="Project" value={String(o1.projectName || (o1.projectAssumed ? "Not provided" : "-"))} accent="text-foreground" />
+                    <OutcomeRow icon={<Building2 className="size-3" />} label="Type" value={`${String(o1.projectType || "-").replace(/_/g, " ")}${o1.projectAssumed ? " (assumed)" : ""}`} />
+                    <OutcomeRow icon={<Clock className="size-3" />} label="Stage" value={`${String(o1.projectStage || "-")}${o1.projectAssumed ? " (assumed)" : ""}`} />
+                    <OutcomeRow icon={<DollarSign className="size-3" />} label="Value" value={`${o1.projectValue || "-"}${o1.budgetTier ? ` · ${o1.budgetTier}` : ""}`} />
+                    <OutcomeRow icon={<MapPin className="size-3" />} label="City" value={String(o1.projectCity || "-")} />
                   </div>
                 </OutcomeCard>
 
                 <OutcomeCard title="Contact Details">
                   <div className="grid sm:grid-cols-2 gap-x-6">
-                    <OutcomeRow icon={<User className="size-3" />} label="Name" value={String(o1.contactName || "—")} accent="text-foreground" />
-                    <OutcomeRow icon={<Briefcase className="size-3" />} label="Title" value={String(o1.contactTitle || "—")} />
-                    <OutcomeRow icon={<Mail className="size-3" />} label="Email" value={String(o1.contactEmail || "—")} mono />
-                    <OutcomeRow icon={<Phone className="size-3" />} label="WhatsApp" value={String(o1.contactPhone || "—")} mono />
-                    <OutcomeRow icon={<Linkedin className="size-3" />} label="LinkedIn" value={String(o1.contactLinkedIn || "—")} mono />
-                    <OutcomeRow icon={<Shield className="size-3" />} label="Seniority" value={String(o1.seniority || "—")} />
+                    <OutcomeRow icon={<User className="size-3" />} label="Name" value={String(o1.contactName || "-")} accent="text-foreground" />
+                    <OutcomeRow icon={<Briefcase className="size-3" />} label="Title" value={String(o1.contactTitle || "-")} />
+                    <OutcomeRow icon={<Mail className="size-3" />} label="Email" value={String(o1.contactEmail || "-")} mono />
+                    <OutcomeRow icon={<Phone className="size-3" />} label="WhatsApp" value={String(o1.contactPhone || "-")} mono />
+                    <OutcomeRow icon={<Linkedin className="size-3" />} label="LinkedIn" value={String(o1.contactLinkedIn || "-")} mono />
+                    <OutcomeRow icon={<Shield className="size-3" />} label="Seniority" value={String(o1.seniority || "-")} />
                   </div>
                   {o1.dataSource === "live" && !o1.contactEmail && !o1.contactPhone && (
-                    <p className="text-[10px] font-bold mt-2 text-muted-foreground">No email or WhatsApp on file — add them if you have them; NERVE never guesses contact details for real people.</p>
+                    <p className="text-[10px] font-bold mt-2 text-muted-foreground">No email or WhatsApp on file. Add them if you have them; NERVE never guesses contact details for real people.</p>
                   )}
                   {String(o1.contactEmail || "").endsWith(".example") && (
-                    <p className="text-[10px] font-bold mt-2 text-muted-foreground">Sample contact — simulated enrichment uses reserved <span className="font-mono">.example</span> addresses, so nothing can reach a real person.</p>
+                    <p className="text-[10px] font-bold mt-2 text-muted-foreground">Sample contact. Simulated enrichment uses reserved <span className="font-mono">.example</span> emails and invalid +91-00000 numbers, so nothing can reach a real person.</p>
                   )}
                 </OutcomeCard>
               </div>
@@ -497,11 +497,11 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={2}
             title="Intelligence Gathering"
-            subtitle="Agents 2, 3, 4 — Signal scouting, intent scoring, and persona profiling run in parallel"
+            subtitle="Agents 2, 3 and 4: signal scouting, intent scoring and persona profiling run in parallel"
             icon={<Radar className="size-5" />}
             status={phaseStatus([2, 3, 4], runs, live)}
             accentColor="purple"
-            integrations={["Tavily API", "LinkedIn"]}
+            integrations={o1.dataSource === "live" ? ["Tavily", "Groq"] : ["Sample data"]}
           >
             {phaseStatus([2, 3, 4], runs, live) === "running" && (
               <ThinkingIndicator label="Scanning signals, scoring intent, profiling persona…" />
@@ -523,7 +523,7 @@ export default function PipelinePage() {
                         <div className="rounded-lg border border-border/15 bg-card/20 p-2.5 space-y-1">
                           <div className="flex items-center gap-1.5">
                             <DataChip variant={sig.strength === "HIGH" ? "red" : sig.strength === "MEDIUM" ? "orange" : "default"}>
-                              {String(sig.strength || "—")}
+                              {String(sig.strength || "-")}
                             </DataChip>
                             <DataChip variant="purple">{String(sig.category || "signal").replace(/_/g, " ")}</DataChip>
                           </div>
@@ -566,7 +566,7 @@ export default function PipelinePage() {
                       </div>
                       <div>
                         <DataChip variant={(o3.tier || o3.priority) === "HOT" ? "red" : (o3.tier || o3.priority) === "WARM" ? "orange" : "cyan"}>
-                          {(o3.tier || o3.priority || "—") as string}
+                          {(o3.tier || o3.priority || "-") as string}
                         </DataChip>
                       </div>
                     </div>
@@ -644,7 +644,7 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={3}
             title="Strategy Commander"
-            subtitle="Agent 5 — The central decision brain. Decides channel, timing, tone, and full cadence"
+            subtitle="Agent 5: decides the channel, timing, tone and full cadence"
             icon={<Lightbulb className="size-5" />}
             status={phaseStatus([5], runs, live)}
             accentColor="blue"
@@ -658,13 +658,13 @@ export default function PipelinePage() {
                 <div className="grid grid-cols-4 gap-3">
                   <MetricTile
                     label="Primary Channel"
-                    value={((o5.primaryChannel || "—") as string).replace(/_/g, " ")}
+                    value={((o5.primaryChannel || "-") as string).replace(/_/g, " ")}
                     icon={<Send className="size-4" />}
                     accentColor="cyan"
                   />
                   <MetricTile
                     label="Tone Framework"
-                    value={((o5.approach || o5.toneFramework || "—") as string).replace(/_/g, " ")}
+                    value={((o5.approach || o5.toneFramework || "-") as string).replace(/_/g, " ")}
                     icon={<Volume2 className="size-4" />}
                     accentColor="purple"
                   />
@@ -734,7 +734,7 @@ export default function PipelinePage() {
                       <div className="size-9 shrink-0 border-2 border-black bg-white flex items-center justify-center"><MapPin className="size-4" /></div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-widest">Experience Centre invite</p>
-                        <p className="text-sm font-black">{ec.brandName} — {ec.centre.city}{ec.sameCity ? " (same city)" : ec.distanceKm > 0 ? ` (~${ec.distanceKm} km)` : ""}</p>
+                        <p className="text-sm font-black">{ec.brandName}, {ec.centre.city}{ec.sameCity ? " (same city)" : ec.distanceKm > 0 ? ` (~${ec.distanceKm} km)` : ""}</p>
                         <p className="text-[11px] font-semibold">{ec.centre.address}</p>
                         <a href={ec.centre.mapUrl} target="_blank" rel="noreferrer" className="text-[11px] font-black underline">Open in Maps</a>
                       </div>
@@ -767,11 +767,11 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={4}
             title="Content Generation"
-            subtitle="Agent 6 — AI-crafted multi-touch outreach messages, LinkedIn posts, and headline suggestions"
+            subtitle="Agent 6: writes the multi-touch outreach, the spec sheet and a LinkedIn post"
             icon={<FileText className="size-5" />}
             status={phaseStatus([6], runs, live)}
             accentColor="teal"
-            integrations={["Groq LLM", "GPT-OSS 120B"]}
+            integrations={o6.drafter === "llm" || o6.drafter === "mixed" ? ["Groq", "GPT-OSS 120B", "Verified facts only"] : ["Templates", "Verified facts only"]}
           >
             {phaseStatus([6], runs, live) === "running" && (
               <ThinkingIndicator label="Generating personalized outreach content…" />
@@ -783,7 +783,7 @@ export default function PipelinePage() {
                 {(o6.touches as Array<Record<string, unknown>>).map((touch, i) => (
                   <StreamItem key={i} delay={i * 0.2}>
                     <OutcomeCard
-                      title={`Touch ${touch.touchNumber} — ${((touch.channel || "") as string).replace(/_/g, " ")}`}
+                      title={`Touch ${touch.touchNumber}: ${((touch.channel || "") as string).replace(/_/g, " ")}`}
                     >
                       {!!touch.subject && (
                         <div className="mb-2 pb-2 border-b border-border/10">
@@ -845,7 +845,7 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={5}
             title="Decision Trace & Explainability"
-            subtitle="Agent 7 — Reads the full trace of every decision, generates plain-English rationale"
+            subtitle="Agent 7: reads every decision and explains it in plain English"
             icon={<Eye className="size-5" />}
             status={phaseStatus([7], runs, live)}
             accentColor="yellow"
@@ -899,7 +899,7 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={6}
             title="Delivery & Execution"
-            subtitle="Agent 8 — Sends messages via selected platforms. Tracks delivery receipts"
+            subtitle="Agent 8: sends on the chosen channels and tracks delivery"
             icon={<Send className="size-5" />}
             status={phaseStatus([8], runs, live)}
             accentColor="emerald"
@@ -995,7 +995,7 @@ export default function PipelinePage() {
           <PhaseContainer
             phaseNumber={7}
             title="Response Monitor & Learning Loop"
-            subtitle="Agents 9 & 10 — Classifies response sentiment, then updates scoring weights for compounding improvement"
+            subtitle="Agents 9 and 10: classify the reply, then update the scoring weights"
             icon={<GraduationCap className="size-5" />}
             status={phaseStatus([9, 10], runs, live)}
             accentColor="orange"
@@ -1008,7 +1008,7 @@ export default function PipelinePage() {
               <div className="space-y-4">
                 {/* Agent 9: Response Classification */}
                 {agentStatus(runs, 9, live) === "complete" && (
-                  <OutcomeCard title="Response Classification — Agent 9">
+                  <OutcomeCard title="Response Classification (Agent 9)">
                     <div className="flex items-center gap-3 mb-3">
                       <DataChip variant={
                         o9.sentiment === "positive" ? "emerald" :
@@ -1032,7 +1032,7 @@ export default function PipelinePage() {
 
                 {/* Agent 10: Learning Loop */}
                 {agentStatus(runs, 10, live) === "complete" && !!o10.weightUpdates && (
-                  <OutcomeCard title="Learning Loop — Agent 10">
+                  <OutcomeCard title="Learning Loop (Agent 10)">
                     <div className="space-y-3">
                       {/* Weight Updates */}
                       <div>

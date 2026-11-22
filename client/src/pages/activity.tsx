@@ -134,15 +134,15 @@ function getEventLabel(event: SSEEvent): string {
   const str = (v: unknown, fb = "") => (v == null ? fb : String(v));
   switch (event.type) {
     case "agent_status":
-      return `Agent ${str(d.agentNumber)} (${str(d.agentName)}) is now ${str(d.status)}. ${str(d.outputSummary)}${d.error ? ` — ${str(d.error)}` : ""}`;
+      return `Agent ${str(d.agentNumber)} (${str(d.agentName)}) is now ${str(d.status)}. ${str(d.outputSummary)}${d.error ? `, ${str(d.error)}` : ""}`;
     case "delivery_update":
-      return `Touch ${str(d.touchNumber, "?")} via ${str(d.channel).replace(/_/g, " ")} — ${str(d.status)}`;
+      return `Touch ${str(d.touchNumber, "?")} via ${str(d.channel).replace(/_/g, " ")}: ${str(d.status)}`;
     case "pipeline_complete":
       return d.leadsProcessed != null
-        ? `Discovery batch complete — ${str(d.leadsProcessed)} leads processed`
+        ? `Discovery batch complete: ${str(d.leadsProcessed)} leads processed`
         : `Mission complete. Status: ${str(d.status)}. Outcome: ${str(d.action, "n/a").replace(/_/g, " ")}`;
     case "branch_decision":
-      return `Decision made: ${str(d.action).replace(/_/g, " ")} — ${str(d.message)}`;
+      return `Decision made: ${str(d.action).replace(/_/g, " ")}. ${str(d.message)}`;
     case "error":
       return `Error alert: ${str(d.error, "unknown error")}`;
     case "score_update":
@@ -151,7 +151,7 @@ function getEventLabel(event: SSEEvent): string {
       if (Array.isArray(d.leads)) return `Enriched ${d.leads.length} lead(s): ${d.leads.map((l) => str((l as Record<string, unknown>).company)).join(", ")}`;
       return "Score update";
     case "signal_update":
-      return `${Array.isArray(d.signals) ? d.signals.length : 0} signals found — overall ${str(d.overallSignalStrength)}`;
+      return `${Array.isArray(d.signals) ? d.signals.length : 0} signals found, overall strength ${str(d.overallSignalStrength)}`;
     case "strategy_update":
       return `Strategy: ${str(d.primaryChannel).replace(/_/g, " ")} · ${str(d.toneFramework).replace(/_/g, " ")}`;
     case "content_update":

@@ -9,7 +9,7 @@ export function ResearchCard({ research, contactUnknown, projectAssumed }: { res
       <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b-2 border-black bg-[#CEEBFC]">
         <Search className="size-4" />
         <span className="text-xs font-black uppercase">Live research</span>
-        <span className="text-[10px] font-bold">via {research.providers.join(" + ") || "—"} · read-only, nothing sent</span>
+        <span className="text-[10px] font-bold">via {research.providers.join(" + ") || "-"} · read-only, nothing sent</span>
         <span className={`ml-auto text-[9px] font-black uppercase border-2 border-black px-1.5 py-0.5 ${found ? "bg-[#599D77] text-white" : "bg-secondary"}`}>
           {research.status === "found" ? "Profile found" : research.status === "partial" ? "Partial profile" : research.status === "not_found" ? "Nothing found" : "Unavailable"}
         </span>
@@ -22,7 +22,7 @@ export function ResearchCard({ research, contactUnknown, projectAssumed }: { res
           )}
           {research.founded && <p><span className="text-[10px] font-black uppercase text-muted-foreground block">Founded</span><span className="font-bold">{research.founded}</span></p>}
           {research.principals.length > 0 && (
-            <p><span className="text-[10px] font-black uppercase text-muted-foreground block">Principals (public sources)</span><span className="font-bold">{research.principals.map((p) => `${p.name}${p.title ? ` — ${p.title}` : ""}`).join(", ")}</span></p>
+            <p><span className="text-[10px] font-black uppercase text-muted-foreground block">Principals (public sources)</span><span className="font-bold">{research.principals.map((p) => `${p.name}${p.title ? `, ${p.title}` : ""}`).join(", ")}</span></p>
           )}
           {research.notableProjects.length > 0 && (
             <p><span className="text-[10px] font-black uppercase text-muted-foreground block">Public projects</span><span className="font-bold">{research.notableProjects.join(" · ")}</span></p>
@@ -30,11 +30,11 @@ export function ResearchCard({ research, contactUnknown, projectAssumed }: { res
         </div>
         <div className="space-y-1.5">
           {contactUnknown && (
-            <p className="text-[11px] font-bold flex items-start gap-1.5"><UserX className="size-3.5 shrink-0 mt-0.5" /> No named contact found publicly — drafts address the studio. Add the principal's name and number in New Mission to personalise.</p>
+            <p className="text-[11px] font-bold flex items-start gap-1.5"><UserX className="size-3.5 shrink-0 mt-0.5" /> No named contact found publicly, so drafts address the studio. Add the principal's name and number in New Mission to personalise.</p>
           )}
-          <p className="text-[11px] font-bold flex items-start gap-1.5"><ShieldCheck className="size-3.5 shrink-0 mt-0.5" /> Emails and phone numbers are never guessed for real people — they're used only if you enter them.</p>
+          <p className="text-[11px] font-bold flex items-start gap-1.5"><ShieldCheck className="size-3.5 shrink-0 mt-0.5" /> Emails and phone numbers are never guessed for real people. They're used only if you enter them.</p>
           {projectAssumed && (
-            <p className="text-[11px] font-bold flex items-start gap-1.5"><FlaskConical className="size-3.5 shrink-0 mt-0.5" /> No project details given — type and stage are planning assumptions, and the drafts don't mention a specific project.</p>
+            <p className="text-[11px] font-bold flex items-start gap-1.5"><FlaskConical className="size-3.5 shrink-0 mt-0.5" /> No project details given. Type and stage are planning assumptions, and the drafts don't mention a specific project.</p>
           )}
           {research.apollo.status === "unavailable" && research.apollo.note && (
             <p className="text-[10px] font-semibold text-muted-foreground">Apollo: {research.apollo.note}</p>
@@ -61,7 +61,7 @@ export function ResearchCard({ research, contactUnknown, projectAssumed }: { res
 export function SampleDataNote() {
   return (
     <div className="border-2 border-dashed border-black bg-white px-3 py-2 text-[11px] font-bold flex items-center gap-2" data-tour="research-card">
-      <FlaskConical className="size-4" /> Fictional demo profile — this firm, its contacts and its project are sample data. Launch a mission with a real firm name to see live research.
+      <FlaskConical className="size-4" /> Fictional demo profile: this firm, its contacts and its project are sample data. Launch a mission with a real firm name to see live research.
     </div>
   );
 }

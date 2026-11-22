@@ -122,9 +122,9 @@ function HeroSection() {
           <Link to="/dashboard" className="bg-green-deep text-cream font-sans text-[0.95rem] font-medium py-[0.85rem] px-[2rem] rounded-[4px] hover:bg-green-mid hover:-translate-y-[2px] shadow-md hover:shadow-xl hover:shadow-green-deep/20 transition-all duration-300">
             Initialize Flywheel →
           </Link>
-          <button className="bg-transparent border border-green-deep/20 text-[#3A3A35] font-sans text-[0.9rem] py-[0.85rem] px-[2rem] rounded-[4px] cursor-pointer hover:border-green-deep hover:text-green-deep hover:bg-green-deep/5 transition-all duration-300">
+          <a href="#intelligence" className="bg-transparent border border-green-deep/20 text-[#3A3A35] font-sans text-[0.9rem] py-[0.85rem] px-[2rem] rounded-[4px] cursor-pointer hover:border-green-deep hover:text-green-deep hover:bg-green-deep/5 transition-all duration-300">
             View the 10 Agents
-          </button>
+          </a>
         </motion.div>
 
         {/* Live Theater Logger (Mini) */}
@@ -258,7 +258,7 @@ function HowCard({ title, description, visual, index }: HowCardProps) {
             <circle cx="80" cy="90" r="3" fill="white" />
 
             <text x="100" y="115" textAnchor="middle" className="font-mono text-[8px]" fill="white" stroke="none">
-              CSV · Apollo · CRM
+              Name · Chat · News
             </text>
           </svg>
         )}
@@ -345,7 +345,7 @@ function HowItWorks() {
         <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-5">
           <HowCard
             title="Ingest in seconds"
-            description="Drop a CSV, paste an Apollo export, or connect your CRM. NERVE validates, enriches, and deduplicates before anything fires."
+            description="Type a firm name, paste an exhibition chat, or let Autopilot find firms from the news. NERVE researches, enriches and deduplicates before anything is drafted."
             visual="ingest"
             index={0}
           />
@@ -440,9 +440,9 @@ function OutreachPanel() {
             value="Filter by channel..."
             className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-[4px] px-[0.6rem] py-[0.3rem] font-sans text-[0.7rem] text-[rgba(255,255,255,0.35)] w-[160px] outline-none"
           />
-          <button className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-[4px] px-[0.6rem] py-[0.3rem] font-sans text-[0.7rem] text-[rgba(255,255,255,0.35)] cursor-pointer">
+          <span aria-hidden className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.08)] rounded-[4px] px-[0.6rem] py-[0.3rem] font-sans text-[0.7rem] text-[rgba(255,255,255,0.35)]">
             Columns ▾
-          </button>
+          </span>
         </div>
 
         {/* Table Area */}
@@ -571,7 +571,7 @@ function SchedulingPanel() {
         {/* Right Sub-block: Timeslots */}
         <div className="flex-1 bg-[#0E0E0C] border border-[rgba(255,255,255,0.08)] rounded-[8px] p-3 flex flex-col gap-[0.3rem]">
           <div className="font-mono text-[0.68rem] font-medium text-[rgba(255,255,255,0.5)] mb-[0.5rem]">
-            Tue, 20 — IST
+            Tue 20, IST
           </div>
 
           {timeSlots.map((ts, i) => (
@@ -684,15 +684,15 @@ function AgentCard({ num, name, desc, status, index }: AgentCardProps) {
 
 function AgentsGrid() {
   const agents: Omit<AgentCardProps, 'index'>[] = [
-    { num: 'A01', name: 'Lead Ingestion Agent', desc: 'Accepts CSV, Apollo exports, manual input, or CRM webhooks. Enriches and deduplicates before passing downstream.', status: 'active' },
-    { num: 'A02', name: 'Signal Scout', desc: 'Funding rounds, product launches, executive hires, and LinkedIn activity in the past 30 days. Outputs a ranked signal vector.', status: 'active' },
-    { num: 'A03', name: 'Intent Scorer', desc: '0–100 composite score across ICP fit, seniority, geography, and signal recency. Full attribution breakdown included.', status: 'active' },
-    { num: 'A04', name: 'Persona Analyst', desc: 'Maps title and LinkedIn style to one of four archetypes: Strategic Executive, Practitioner, Innovator, or Networker.', status: 'idle' },
-    { num: 'A05', name: 'Strategy Commander', desc: 'Selects channel, send timestamp, tone, and 3-touch cadence. Every decision logged for the Explainer Agent.', status: 'idle' },
-    { num: 'A06', name: 'Content Forge', desc: 'Generates all three touches per channel. Injects live signals into Touch 1. Powered by Claude Sonnet.', status: 'idle' },
+    { num: 'A01', name: 'Lead Ingestion Agent', desc: 'Takes a firm name, a pasted chat (Quick Capture) or an Autopilot find. Researches real firms on the web and news, enriches and deduplicates.', status: 'active' },
+    { num: 'A02', name: 'Signal Scout', desc: 'Finds recent project launches, awards, new studios and other public signals, ranked by recency and strength.', status: 'active' },
+    { num: 'A03', name: 'Intent Scorer', desc: '0-100 score across segment fit, seniority, project value, nearest experience centre and signal recency, with a full breakdown.', status: 'active' },
+    { num: 'A04', name: 'Persona Analyst', desc: 'Maps the contact to a specifier archetype (architect, interior designer, developer, contractor or homeowner) with tone and talking points.', status: 'idle' },
+    { num: 'A05', name: 'Strategy Commander', desc: 'Picks the brand bundle, channel, tone, experience centre and a 3-touch cadence timed to each brand\'s specification window.', status: 'idle' },
+    { num: 'A06', name: 'Content Forge', desc: 'Writes all three touches and a spec sheet from verified brand facts only. Opens Touch 1 with the strongest signal. Drafted with Groq.', status: 'idle' },
     { num: 'A07', name: 'Explainer Agent', desc: 'Converts every decision trace into plain-English rationale for the Decision Theatre panel.', status: 'idle' },
-    { num: 'A08', name: 'Delivery Agent', desc: 'Sends via HeyReach (LinkedIn), Aisensy (WhatsApp), and Resend (email) with exponential backoff retry.', status: 'idle' },
-    { num: 'A09', name: 'Response Monitor', desc: 'Classifies incoming events as positive, neutral, negative, or no-reply using NLP sentiment analysis.', status: 'idle' },
+    { num: 'A08', name: 'Delivery Agent', desc: 'Sends via AiSensy (WhatsApp), Resend (email) and HeyReach (LinkedIn) once the company connects its accounts. Simulated in the demo.', status: 'idle' },
+    { num: 'A09', name: 'Response Monitor', desc: 'Classifies replies as positive, neutral, negative or a visit request, and books the visit at the nearest centre.', status: 'idle' },
     { num: 'A10', name: 'Learning Loop Agent', desc: 'Updates Intent Scorer weights, channel heuristics, and tone rules after every response. The engine improves with every lead.', status: 'idle' },
   ];
 
@@ -728,27 +728,27 @@ function AgentsGrid() {
 // --- Component: IntegrationsGrid.tsx ---
 function IntegrationsGrid() {
   const integrations = [
-    { name: "Salesforce", icon: <Database className="w-6 h-6" />, category: "CRM" },
-    { name: "HubSpot", icon: <Globe className="w-6 h-6" />, category: "CRM" },
-    { name: "LinkedIn", icon: <Briefcase className="w-6 h-6" />, category: "Channel" },
-    { name: "Apollo", icon: <Zap className="w-6 h-6" />, category: "Data" },
-    { name: "Gmail/Outlook", icon: <Mail className="w-6 h-6" />, category: "Email" },
-    { name: "WhatsApp", icon: <MessageCircle className="w-6 h-6" />, category: "Channel" },
-    { name: "Clearbit", icon: <Shield className="w-6 h-6" />, category: "Enrichment" },
-    { name: "Calendly", icon: <Calendar className="w-6 h-6" />, category: "Scheduling" },
+    { name: "Tavily", icon: <Globe className="w-6 h-6" />, category: "Web & news research" },
+    { name: "Groq", icon: <Zap className="w-6 h-6" />, category: "AI drafting & extraction" },
+    { name: "Apollo", icon: <Shield className="w-6 h-6" />, category: "Company enrichment" },
+    { name: "Mastra", icon: <Calendar className="w-6 h-6" />, category: "Agent workflow" },
+    { name: "AiSensy", icon: <MessageCircle className="w-6 h-6" />, category: "WhatsApp" },
+    { name: "Resend", icon: <Mail className="w-6 h-6" />, category: "Email" },
+    { name: "HeyReach", icon: <Briefcase className="w-6 h-6" />, category: "LinkedIn" },
+    { name: "Zoho CRM", icon: <Database className="w-6 h-6" />, category: "Sales hand-off" },
   ];
 
   return (
-    <section className="bg-[#F5F2E8] py-24 px-12 border-t border-b border-[#EDE9D8]/50">
+    <section id="integrations" className="bg-[#F5F2E8] py-24 px-12 border-t border-b border-[#EDE9D8]/50">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <div className="inline-block font-mono text-[0.68rem] text-[#1A5C35] uppercase tracking-[0.15em] mb-4">
             Ecosystem
           </div>
           <h2 className="font-heading font-bold text-[clamp(2rem,4vw,3rem)] text-[#1A1A18] leading-[1.1]">
-            Native connectivity.
+            Built on real providers.
             <br />
-            <span className="text-[#6B6B62] font-normal">Zero configuration required.</span>
+            <span className="text-[#6B6B62] font-normal">Each channel sends from the company's own account.</span>
           </h2>
         </div>
 
@@ -1066,9 +1066,9 @@ function CTASection() {
           <Link to="/dashboard" className="bg-[#1A5C35] text-[#F5F2E8] font-sans text-[0.95rem] font-medium py-[0.85rem] px-[2rem] rounded-[4px] hover:bg-[#2E7D4F] hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
             Request Early Access →
           </Link>
-          <button className="bg-transparent border-[1.5px] border-[rgba(26,92,53,0.25)] text-[#3A3A35] font-sans text-[0.95rem] font-medium py-[0.85rem] px-[2rem] rounded-[4px] hover:border-[#1A5C35] hover:text-[#1A5C35] hover:bg-[#1A5C35]/5 transition-colors">
-            Watch the Demo
-          </button>
+          <Link to="/login" className="bg-transparent border-[1.5px] border-[rgba(26,92,53,0.25)] text-[#3A3A35] font-sans text-[0.95rem] font-medium py-[0.85rem] px-[2rem] rounded-[4px] hover:border-[#1A5C35] hover:text-[#1A5C35] hover:bg-[#1A5C35]/5 transition-colors">
+            Try the Live Demo
+          </Link>
         </div>
       </motion.div>
     </section>
@@ -1084,7 +1084,7 @@ function Footer() {
         NERVE · CORTEXREACH
       </div>
       <div className="font-sans text-[0.78rem] text-[rgba(255,255,255,0.35)] text-center md:text-right">
-        Built on Mastra · Powered by Claude Sonnet · © 2025
+        Built on Mastra · Drafted with Groq · Prototype for AllHome · © 2026
       </div>
     </footer>
   );
@@ -1123,7 +1123,7 @@ export default function LandingPage() {
       >
         <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#FFDA5C]">AllHome Edition</p>
         <p className="font-heading font-black text-lg leading-tight mt-1">Specifier outreach for 7 AllHome brands</p>
-        <p className="text-xs text-[#F5F2E8]/70 mt-1">Open the live demo — one click, pre-loaded workspace, guided tour →</p>
+        <p className="text-xs text-[#F5F2E8]/70 mt-1">Open the live demo: one click, a pre-loaded workspace and a guided tour →</p>
       </Link>
     </main>
   );

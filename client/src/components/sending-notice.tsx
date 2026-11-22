@@ -52,9 +52,9 @@ function stateLabel(c: ChannelStatus, simulation: boolean): { text: string; cls:
 /** One-line reason a message on this channel is (or isn't) really sent. */
 function shortReason(c: ChannelStatus, simulation: boolean): string {
   if (c.canSendLive) return `Sent live via ${c.provider}`;
-  if (c.state === "not_connected") return `Simulated — add your ${c.provider} API key to send`;
-  if (c.state === "needs_setup") return `Simulated — ${c.provider} key added, ${c.shortAction} to send`;
-  return simulation ? `Simulated — ${c.provider} is ready; demo mode keeps sending off` : `Sent via ${c.provider}`;
+  if (c.state === "not_connected") return `Simulated. Add your ${c.provider} API key to send`;
+  if (c.state === "needs_setup") return `Simulated. ${c.provider} key added; ${c.shortAction} to send`;
+  return simulation ? `Simulated. ${c.provider} is ready, but demo mode keeps sending off` : `Sent via ${c.provider}`;
 }
 
 /** Compact inline badge for a single message / channel. */
@@ -87,7 +87,7 @@ export function SendingBanner({ channels, compact = false, context = "messages" 
   if (allLive) {
     return (
       <div className="border-2 border-black bg-[#599D77] text-white px-3 py-2 text-xs font-black flex items-center gap-2">
-        <CheckCircle2 className="size-4" /> Live sending is on — {context} go out through your connected accounts.
+        <CheckCircle2 className="size-4" /> Live sending is on: {context} go out through your connected accounts.
       </div>
     );
   }
@@ -97,7 +97,7 @@ export function SendingBanner({ channels, compact = false, context = "messages" 
       <div className="border-2 border-black bg-accent px-3 py-2 text-[11px] font-semibold flex flex-wrap items-center gap-x-2 gap-y-1" data-tour="sending-notice">
         <ShieldCheck className="size-4 shrink-0" />
         <span>
-          <span className="font-black">{report.simulationMode ? "Sending is off:" : "Not live yet:"}</span> {context} are researched, drafted and tracked but <span className="font-black">never sent</span>{report.liveResearch ? " — this demo uses the developer's personal API keys for research only" : ""}. To send for real, the company connects its own WhatsApp, email and LinkedIn accounts.
+          <span className="font-black">{report.simulationMode ? "Sending is off:" : "Not live yet:"}</span> {context} are researched, drafted and tracked but <span className="font-black">never sent</span>{report.liveResearch ? ". This demo uses the developer's personal API keys for research only" : ""}. To send for real, the company connects its own WhatsApp, email and LinkedIn accounts.
         </span>
         <Link to="/dashboard/settings#integrations" className="font-black underline whitespace-nowrap">Set up sending →</Link>
       </div>
@@ -109,9 +109,9 @@ export function SendingBanner({ channels, compact = false, context = "messages" 
       <div className="flex items-start gap-3 p-4 border-b-2 border-black bg-accent">
         <ShieldCheck className="size-5 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-sm font-black uppercase">{report.simulationMode ? "Sending is locked — nothing is ever sent from this demo" : "Some channels aren't connected yet"}</p>
+          <p className="text-sm font-black uppercase">{report.simulationMode ? "Sending is locked: nothing is ever sent from this demo" : "Some channels aren't connected yet"}</p>
           <p className="text-[12px] font-semibold leading-relaxed">
-            NERVE researches, writes, schedules and tracks every {context.replace(/s$/, "")} exactly as it would in production.{report.liveResearch ? " Research uses live data, but the API keys on this deployment are the developer's personal keys — so sending is permanently disabled." : ""} In production each channel uses <span className="font-black">the company's own account and API key</span> — messages go out from AllHome's own number, domain and LinkedIn profiles, never from NERVE.
+            NERVE researches, writes, schedules and tracks every {context.replace(/s$/, "")} exactly as it would in production.{report.liveResearch ? " Research uses live data, but the API keys on this deployment are the developer's personal keys, so sending is permanently disabled." : ""} In production each channel uses <span className="font-black">the company's own account and API key</span>, so messages go out from AllHome's own number, domain and LinkedIn profiles, never from NERVE.
           </p>
         </div>
       </div>

@@ -228,7 +228,7 @@ export interface DiscoveredFirm {
 const DISCOVER_SYSTEM = `You extract names of Indian architecture / interior-design / real-estate / construction FIRMS from web search results.
 Rules:
 - Only return firm names that appear verbatim in the provided sources. Never add firms from memory.
-- Firms only — no people, no publications, no directories, no award bodies.
+- Firms only, no people, no publications, no directories, no award bodies.
 - "reason" is one factual clause from the source (e.g. "listed among top luxury residential architects in Mumbai").
 Return ONLY a JSON array: [{"companyName": string, "city": string|null, "reason": string, "source": number}] where "source" is the [n] index of the source.`;
 

@@ -38,7 +38,7 @@ function specifierInfluence(lead: EnrichedLead): Scored {
   score = Math.min(100, score);
   return {
     score,
-    reasoning: `${SEGMENTS[seg].label}s decide what gets specified — like doctors in pharma. ${lead.contactTitle} ${lead.seniority === "C-Level" ? "owns the final material call" : "strongly influences the material call"}.`,
+    reasoning: `${SEGMENTS[seg].label}s decide what gets specified, like doctors in pharma. ${lead.contactTitle} ${lead.seniority === "C-Level" ? "owns the final material call" : "strongly influences the material call"}.`,
   };
 }
 
@@ -54,7 +54,7 @@ function segmentFit(lead: EnrichedLead, targetSegments: string[]): Scored {
 function projectValue(lead: EnrichedLead): Scored {
   const cr = parseCrore(lead.projectValue);
   const score = cr >= 100 ? 95 : cr >= 25 ? 85 : cr >= 8 ? 78 : cr >= 3 ? 68 : cr > 0 ? 50 : 55;
-  return { score, reasoning: `${lead.projectName || "Project"} valued at ${lead.projectValue || "unknown"} — ${lead.budgetTier || "premium"} tier` };
+  return { score, reasoning: `${lead.projectName || "Project"} valued at ${lead.projectValue || "unknown"} (${lead.budgetTier || "premium"} tier)` };
 }
 
 function stageFit(lead: EnrichedLead, brands?: string[]): Scored {
@@ -72,7 +72,7 @@ function stageFit(lead: EnrichedLead, brands?: string[]): Scored {
 function centreProximity(lead: EnrichedLead): Scored {
   const match = nearestCentre(lead.projectCity);
   if (!match) return { score: 40, reasoning: "No experience centre found" };
-  if (match.sameCity) return { score: 95, reasoning: `AllHome experience centre in ${match.centre.city} (${match.brandName}) — easy to invite for a material walkthrough` };
+  if (match.sameCity) return { score: 95, reasoning: `AllHome ${match.centre.kind === "dealer" ? "dealer showroom" : "experience centre"} in ${match.centre.city} (${match.brandName}): easy to invite for a material walkthrough` };
   const d = match.distanceKm;
   const score = d < 0 ? 50 : d < 200 ? 75 : d < 600 ? 60 : 45;
   return { score, reasoning: `Nearest centre: ${match.brandName}, ${match.centre.city}${d >= 0 ? ` (~${d} km)` : ""}` };
@@ -84,7 +84,7 @@ function signalStrength(signals: SignalBundle): Scored {
   const total = signals.signals.reduce((s, sig) => s + map[sig.strength] * sig.recencyWeight, 0);
   return {
     score: Math.min(100, Math.round(total / 1.3)),
-    reasoning: `${signals.signals.length} signals — top: "${signals.topSignal?.title}" (${signals.topSignal?.strength}, ${signals.topSignal?.recencyDays}d ago)`,
+    reasoning: `${signals.signals.length} signals, top: "${signals.topSignal?.title}" (${signals.topSignal?.strength}, ${signals.topSignal?.dateUnknown ? "date unknown" : `${signals.topSignal?.recencyDays}d ago`})`,
   };
 }
 
@@ -95,7 +95,7 @@ function portfolioFit(lead: EnrichedLead): Scored {
     return {
       score: Math.min(100, 45 + projects * 8 + (premium ? 20 : 0)),
       reasoning: projects || lead.specialties?.length
-        ? `Public work: ${[...(lead.portfolio || []).slice(0, 3)].join(", ") || "—"}${lead.specialties?.length ? ` · focus: ${lead.specialties.slice(0, 3).join(", ")}` : ""}${premium ? " — premium-segment work" : ""}`
+        ? `Public work: ${[...(lead.portfolio || []).slice(0, 3)].join(", ") || "-"}${lead.specialties?.length ? ` · focus: ${lead.specialties.slice(0, 3).join(", ")}` : ""}${premium ? " · premium-segment work" : ""}`
         : "Portfolio not found in public sources",
     };
   }
@@ -104,7 +104,7 @@ function portfolioFit(lead: EnrichedLead): Scored {
   const score = Math.min(100, 40 + Math.min(n, 25) * 1.6 + (premiumSpecialty ? 15 : 0));
   return {
     score: Math.round(score),
-    reasoning: `${n} projects/year${lead.specialties?.length ? ` · focus: ${lead.specialties.join(", ")}` : ""}${premiumSpecialty ? " — premium-segment work" : ""}`,
+    reasoning: `${n} projects/year${lead.specialties?.length ? ` · focus: ${lead.specialties.join(", ")}` : ""}${premiumSpecialty ? " · premium-segment work" : ""}`,
   };
 }
 
@@ -160,10 +160,10 @@ export async function runIntentScorerAgent(
 
     await intentScoresCol().insertOne({ _id: nanoid(), leadId: lead.id, compositeScore, tier, dimensions: JSON.stringify(dimensions), topContributors: JSON.stringify(topContributors), generatedAt: intentScore.generatedAt });
 
-    const summary = `Score: ${compositeScore}/100 (${tier}) — Top: ${topContributors.join(", ")}`;
+    const summary = `Score: ${compositeScore}/100 (${tier}). Top: ${topContributors.join(", ")}`;
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "complete", summary);
     sseManager.emit("score_update", lead.id, intentScore);
-    console.log(`✅ Agent 3 complete in ${Date.now() - start}ms — ${summary}`);
+    console.log(`✅ Agent 3 complete in ${Date.now() - start}ms, ${summary}`);
     return intentScore;
   } catch (error) {
     sseManager.emitAgentStatus(lead.id, AGENT_NUMBER, AGENT_NAME, "error", undefined, error instanceof Error ? error.message : "Unknown error");

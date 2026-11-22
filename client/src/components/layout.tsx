@@ -94,7 +94,7 @@ export default function Layout() {
           <div className={`border-2 border-black rounded-md px-2 py-1.5 flex items-center gap-1.5 ${health?.liveResearch ? "bg-[#CEEBFC]" : "bg-white"}`} title={health?.liveResearch ? "Tavily + Groq retrieve real information about firms (read-only)" : "Fictional sample data"}>
             <Search className="size-3.5" /> Research {health?.liveResearch ? "live" : "demo"}
           </div>
-          <div className={`border-2 border-black rounded-md px-2 py-1.5 flex items-center gap-1.5 ${health?.sendingLocked ? "bg-secondary" : "bg-[#599D77] text-white"}`} title={health?.sendingLocked ? "Personal API keys — nothing is ever sent from this deployment" : "Live sending"}>
+          <div className={`border-2 border-black rounded-md px-2 py-1.5 flex items-center gap-1.5 ${health?.sendingLocked ? "bg-secondary" : "bg-[#599D77] text-white"}`} title={health?.sendingLocked ? "Personal API keys, nothing is ever sent from this deployment" : "Live sending"}>
             <Zap className="size-3.5" /> Sending {health?.sendingLocked ? "off" : "on"}
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function Layout() {
             </div>
           </div>
         )}
-        <p className="text-[9px] leading-tight text-muted-foreground font-semibold px-0.5">Prototype built for AllHome — not an official AllHome product. Demo prospects are fictional.</p>
+        <p className="text-[9px] leading-tight text-muted-foreground font-semibold px-0.5">Prototype built for AllHome. Not an official AllHome product. Demo prospects are fictional.</p>
       </div>
     </>
   );

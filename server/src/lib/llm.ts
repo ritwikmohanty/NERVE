@@ -57,6 +57,18 @@ function providerOptionsFor(model: string) {
   return model.startsWith("openai/gpt-oss") ? { groq: { reasoningEffort: "low" as const } } : undefined;
 }
 
+/** House style for every generated sentence: no em or en dashes (they read as machine-written). */
+const STYLE_RULE = "\n\nStyle: never use em dashes or en dashes; use a comma or a full stop instead.";
+export function undash(t: string): string {
+  return t.replace(/\s+[\u2014\u2013]\s+/g, ", ").replace(/[\u2014\u2013]/g, "-");
+}
+function undashDeep<T>(v: T): T {
+  if (typeof v === "string") return undash(v) as T;
+  if (Array.isArray(v)) return v.map((x) => undashDeep(x)) as T;
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, undashDeep(x)])) as T;
+  return v;
+}
+
 /**
  * Generate free-form text from Groq. Tries the primary model, then the fallback model
  * on rate limits. Throws LLMUnavailableError when no key is set or every model is limited —
@@ -76,17 +88,17 @@ export async function llmGenerateText(
       recordUsage("groq");
       const { text } = await generateText({
         model: groq(model),
-        system: systemPrompt,
+        system: systemPrompt + STYLE_RULE,
         prompt: userMessage,
         maxRetries: 1,
         abortSignal: AbortSignal.timeout(30_000),
         providerOptions: providerOptionsFor(model),
       });
-      return text;
+      return undash(text);
     } catch (error) {
       lastError = error;
       if (!isQuotaError(error)) throw error;
-      console.warn(`[LLM] ${model} rate-limited${model !== MODEL_CHAIN[MODEL_CHAIN.length - 1] ? " — trying fallback model" : ""}`);
+      console.warn(`[LLM] ${model} rate-limited${model !== MODEL_CHAIN[MODEL_CHAIN.length - 1] ? ", trying fallback model" : ""}`);
     }
   }
   throw new LLMUnavailableError(`Groq rate limit on all models: ${String(lastError).slice(0, 120)}`);
@@ -100,21 +112,21 @@ export async function llmGenerateObject<T>(
   schemaName: string
 ): Promise<T> {
   if (!hasLLMKey()) {
-    throw new LLMUnavailableError(`GROQ_API_KEY not set — cannot generate structured object for "${schemaName}"`);
+    throw new LLMUnavailableError(`GROQ_API_KEY not set, cannot generate structured object for "${schemaName}"`);
   }
 
   try {
     recordUsage("groq");
     const { object } = await generateObject({
       model: groq(MODEL),
-      system: systemPrompt,
+      system: systemPrompt + STYLE_RULE,
       prompt: userMessage,
       schema,
       schemaName,
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(30_000),
     });
-    return object;
+    return undashDeep(object);
   } catch (error) {
     if (isQuotaError(error)) {
       throw new LLMUnavailableError(`Groq rate limit for "${schemaName}"`);
