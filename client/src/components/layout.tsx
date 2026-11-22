@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, UserPlus, Activity, Calendar, Settings, Wifi, WifiOff, Cpu, Zap, MapPin, BarChart3, LogOut, HelpCircle, Menu, X, Search, BookOpen,
+  LayoutDashboard, UserPlus, Activity, Calendar, Settings, Wifi, WifiOff, Cpu, Zap, MapPin, BarChart3, LogOut, HelpCircle, Menu, X, Search, BookOpen, Radar,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -12,6 +12,7 @@ import { PAGE_TOURS, tourIdForPath } from "@/components/tour-steps";
 const NAV = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Command Center", accent: "bg-primary", tour: "nav-home" },
   { to: "/dashboard/new", icon: UserPlus, label: "New Mission", accent: "bg-[#CEEBFC]", tour: "nav-new" },
+  { to: "/dashboard/autopilot", icon: Radar, label: "Autopilot", accent: "bg-[#FFDA5C]", tour: "nav-autopilot" },
   { to: "/dashboard/centres", icon: MapPin, label: "Experience Centres", accent: "bg-[#CEEBFC]", tour: "nav-centres" },
   { to: "/dashboard/brief", icon: BookOpen, label: "AllHome Brief", accent: "bg-accent", tour: "nav-brief" },
   { to: "/dashboard/calendar", icon: Calendar, label: "Calendar", accent: "bg-[#FFDA5C]", tour: "nav-calendar" },

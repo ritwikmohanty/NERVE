@@ -1,6 +1,7 @@
 import type {
   Lead, LeadDetail, OutreachChannel, CalendarEvent, SSEEvent, SessionInfo, OrgSettings, Catalog,
   BundlePreview, CapturedLead, AnalyticsData, CentreWithStats, Visit, CrmSync, ProjectContextInput, IntegrationsReport,
+  AutopilotOverview, AutopilotConfig, ProspectRun, Prospect, ApiUsage,
 } from "./types";
 
 // Override with VITE_API_URL (e.g. https://nerve-api.onrender.com/api) when not on localhost:3001
@@ -121,6 +122,15 @@ export const api = {
 
   // ─── Config ───
   setSimulation: (enabled: boolean) => post<{ simulationMode: boolean }>("/config/simulation", { enabled }),
+
+  // ─── Autopilot prospecting ───
+  autopilot: () => request<AutopilotOverview>("/prospecting"),
+  saveAutopilot: (config: Partial<AutopilotConfig>) => request<AutopilotOverview>("/prospecting/config", { method: "PATCH", body: JSON.stringify(config) }),
+  runAutopilot: (sample = false) => post<{ runId: string; status: string }>("/prospecting/run", { sample }),
+  autopilotRun: (id: string) => request<{ run: ProspectRun; prospects: Prospect[] }>(`/prospecting/runs/${id}`),
+  runProspect: (id: string) => post<{ status: string }>(`/prospecting/prospects/${id}/run`),
+  dismissProspect: (id: string) => post<{ ok: boolean }>(`/prospecting/prospects/${id}/dismiss`),
+  usage: () => request<ApiUsage>("/usage"),
 
   // ─── Calendar ───
   getCalendarEvents: () => request<{ events: CalendarEvent[]; count: number }>("/calendar/events"),

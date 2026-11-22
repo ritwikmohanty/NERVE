@@ -24,6 +24,10 @@ services:
         value: "true" # every restart re-seeds a clean shared demo workspace
       - key: ALLOW_LIVE_TOGGLE
         value: "false"
+      - key: DAILY_TAVILY_BUDGET
+        value: "40" # Autopilot never spends past this shared daily budget (Tavily free = 1,000/month)
+      - key: DAILY_GROQ_BUDGET
+        value: "400"
       - key: JWT_SECRET
         generateValue: true
       - key: MONGO_URI

@@ -508,3 +508,126 @@ export interface IntegrationsReport {
   channels: ChannelStatus[];
   research: ResearchProvider[];
 }
+
+// ─── Autopilot prospecting ───
+export type TriggerType = "project_launch" | "hospitality" | "commercial_fitout" | "award_feature" | "new_studio" | "developer_expansion";
+export type AutopilotSchedule = "off" | "daily" | "weekly";
+
+export interface TriggerDef {
+  id: TriggerType;
+  label: string;
+  description: string;
+  allhomeAngle: string;
+  segments: Segment[];
+  stageHint: ProjectStage;
+  weight: number;
+}
+
+export interface AutopilotConfig {
+  triggers: TriggerType[];
+  segments: Segment[];
+  cities: string[];
+  firmsPerRun: number;
+  pipelinesPerRun: number;
+  lookbackDays: number;
+  schedule: AutopilotSchedule;
+  nextRunAt?: string;
+  lastRunAt?: string;
+}
+
+export interface AutopilotLimits {
+  maxFirmsPerRun: number;
+  maxPipelinesPerRun: number;
+  maxQueriesPerRun: number;
+  maxRunsPerDay: number;
+  maxPipelinesPerDay: number;
+  scheduleAllowed: boolean;
+}
+
+export type ApiCalls = { tavily: number; groq: number; apollo: number };
+
+export interface AutopilotEstimate {
+  live: boolean;
+  queries: number;
+  scan: { tavily: number; groq: number };
+  pipelines: number;
+  pipelineCost: ApiCalls;
+  total: ApiCalls;
+  everyFirm: ApiCalls & { firms: number };
+  perPipeline: ApiCalls;
+  fitsBudget: boolean;
+  shortfall?: string;
+}
+
+export interface ApiUsage {
+  day: string;
+  used: ApiCalls;
+  budget: ApiCalls;
+  remaining: ApiCalls;
+}
+
+export type ProspectRunStatus = "scanning" | "running_pipelines" | "done" | "failed" | "skipped_budget" | "interrupted";
+
+export interface ProspectRun {
+  id: string;
+  by: "manual" | "schedule" | "seed";
+  mode: "live" | "sample";
+  status: ProspectRunStatus;
+  config: Omit<AutopilotConfig, "schedule">;
+  queriesPlanned: number;
+  queriesDone: number;
+  found: number;
+  pipelinesPlanned: number;
+  pipelinesDone: number;
+  notes: string[];
+  error?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+export type ProspectStatus = "queued" | "running" | "pipeline_done" | "shortlisted" | "already_in_pipeline" | "dismissed" | "error";
+
+export interface Prospect {
+  id: string;
+  runId: string;
+  rank: number;
+  companyName: string;
+  segment: Segment;
+  city: string;
+  trigger: TriggerType;
+  triggerLabel: string;
+  title: string;
+  detail: string;
+  allhomeAngle: string;
+  projectName?: string;
+  projectType?: ProjectType;
+  stage?: ProjectStage;
+  eventDate?: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
+  dataSource: "live" | "sample";
+  triageScore: number;
+  triageReasons: string[];
+  status: ProspectStatus;
+  leadId?: string;
+  score?: number;
+  tier?: string;
+  error?: string;
+  createdAt: string;
+}
+
+export interface AutopilotOverview {
+  config: AutopilotConfig;
+  limits: AutopilotLimits;
+  live: boolean;
+  sendingLocked: boolean;
+  triggers: TriggerDef[];
+  usage: ApiUsage;
+  unitCosts: Record<"live" | "sample", { perQuery: ApiCalls; perPipeline: ApiCalls }>;
+  estimate: AutopilotEstimate;
+  sampleEstimate: AutopilotEstimate;
+  pipelinesToday: number;
+  queueDepth: number;
+  activeRunId: string | null;
+  runs: ProspectRun[];
+}

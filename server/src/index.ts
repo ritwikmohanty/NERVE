@@ -7,6 +7,7 @@ import { api } from "./api/routes.js";
 import { authRoutes } from "./auth/index.js";
 import { connectDB, ensureIndexes } from "./db/index.js";
 import { seedDemoWorkspace } from "./db/seed-demo.js";
+import { recoverInterruptedRuns, startScheduler } from "./prospecting/engine.js";
 
 const app = new Hono();
 
@@ -51,9 +52,11 @@ async function start() {
     throw err;
   }
   await ensureIndexes();
+  await recoverInterruptedRuns();
   await seedDemoWorkspace();
 
   serve({ fetch: app.fetch, port: config.port });
+  startScheduler();
   console.log(`🧠 NERVE (AllHome edition) — ${config.simulationMode ? "SIMULATION" : "LIVE"} mode — http://localhost:${config.port}`);
 }
 

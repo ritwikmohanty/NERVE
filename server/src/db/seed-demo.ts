@@ -6,12 +6,13 @@
 import { config } from "../config.js";
 import {
   leadsCol, agentRunsCol, signalsCol, intentScoresCol, personaProfilesCol, strategiesCol, generatedContentCol,
-  deliveryLogsCol, responseEventsCol, learningHistoryCol, campaignsCol, visitsCol, crmSyncCol, scoringWeightsCol,
+  deliveryLogsCol, responseEventsCol, learningHistoryCol, campaignsCol, visitsCol, crmSyncCol, scoringWeightsCol, prospectRunsCol,
 } from "./index.js";
 import { getDemoWorkspace, ensureOrgWeights } from "../auth/index.js";
 import { runLeadIngestionAgent } from "../agents/agent1-lead-ingestion.js";
 import { runFullPipeline } from "../pipeline/orchestrator.js";
 import { suppressLLM } from "../lib/llm.js";
+import { seedDemoAutopilot } from "../prospecting/engine.js";
 import type { TargetedInput } from "../types/index.js";
 
 const SEED: Array<Omit<TargetedInput, "mode"> & { reply?: string }> = [
@@ -46,6 +47,8 @@ export async function seedDemoWorkspace(force = process.env.DEMO_RESET_ON_BOOT =
   const { orgId } = await getDemoWorkspace();
   const existing = await leadsCol().countDocuments({ orgId });
   if (existing > 0 && !force) {
+    // Workspaces seeded before Autopilot existed get its sample run once
+    if (!(await prospectRunsCol().findOne({ orgId }))) await seedDemoAutopilot(orgId);
     console.log(`🏠 Demo workspace ready (${existing} leads)`);
     return;
   }
@@ -62,6 +65,7 @@ export async function seedDemoWorkspace(force = process.env.DEMO_RESET_ON_BOOT =
       const [lead] = await runLeadIngestionAgent({ mode: "targeted", origin: "seed", ...rest }, orgId);
       if (lead) await runFullPipeline(lead.id, lead, { reply });
     }
+    await seedDemoAutopilot(orgId);
   } finally {
     (config as { simulationMode: boolean }).simulationMode = wasSimulation;
     suppressLLM(false);

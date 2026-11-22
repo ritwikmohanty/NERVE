@@ -2,6 +2,7 @@ import { createGroq } from "@ai-sdk/groq";
 import { generateText, generateObject } from "ai";
 import { config } from "../config.js";
 import { isSeeding, setSeeding } from "./runtime.js";
+import { recordUsage } from "./usage.js";
 import type { ZodSchema } from "zod";
 
 const groq = createGroq({
@@ -72,6 +73,7 @@ export async function llmGenerateText(
   let lastError: unknown;
   for (const model of MODEL_CHAIN) {
     try {
+      recordUsage("groq");
       const { text } = await generateText({
         model: groq(model),
         system: systemPrompt,
@@ -102,6 +104,7 @@ export async function llmGenerateObject<T>(
   }
 
   try {
+    recordUsage("groq");
     const { object } = await generateObject({
       model: groq(MODEL),
       system: systemPrompt,

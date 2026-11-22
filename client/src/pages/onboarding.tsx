@@ -1,13 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronLeft, ChevronRight, Cpu, Loader2, MapPin } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Cpu, Loader2, MapPin, Radar } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { Segment } from "@/lib/types";
+import type { AutopilotSchedule, Segment, TriggerType } from "@/lib/types";
 
-const STEPS = ["Workspace", "Brands", "Segments", "Cities"] as const;
+const STEPS = ["Workspace", "Brands", "Segments", "Cities", "Autopilot"] as const;
+
+/** Mirrors the server trigger catalogue (labels only — the server is the source of truth). */
+const TRIGGER_CHOICES: Array<{ id: TriggerType; label: string; hint: string }> = [
+  { id: "project_launch", label: "New project launches", hint: "Luxury launches, villa communities, new RERA registrations" },
+  { id: "hospitality", label: "Hotel signings & openings", hint: "Hotels, resorts and branded residences" },
+  { id: "commercial_fitout", label: "Office & retail fit-outs", hint: "Corporate campuses, flagship stores" },
+  { id: "developer_expansion", label: "Developer land deals & funding", hint: "Land acquisitions, JDAs, fundraises" },
+  { id: "award_feature", label: "Awards & design features", hint: "Studios winning awards or featured for new work" },
+  { id: "new_studio", label: "New studios & expansions", hint: "New practices and new offices" },
+];
+const PROSPECTABLE: Segment[] = ["architect", "id_firm", "developer", "contractor"];
 
 export default function OnboardingPage() {
   const { session, catalog, updateOrg } = useAuth();
@@ -20,17 +32,34 @@ export default function OnboardingPage() {
   const [brands, setBrands] = useState<string[]>(s.brands);
   const [segments, setSegments] = useState<Segment[]>(s.segments);
   const [cities, setCities] = useState<string[]>(s.cities);
+  const [triggers, setTriggers] = useState<TriggerType[]>(["project_launch", "hospitality", "commercial_fitout", "developer_expansion"]);
+  const [schedule, setSchedule] = useState<AutopilotSchedule>("off");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const toggle = <T,>(list: T[], v: T, set: (x: T[]) => void) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const canNext = step === 0 ? !!orgName.trim() && !!senderName.trim() : step === 1 ? brands.length > 0 : step === 2 ? segments.length > 0 : cities.length > 0;
+  const canNext =
+    step === 0 ? !!orgName.trim() && !!senderName.trim()
+    : step === 1 ? brands.length > 0
+    : step === 2 ? segments.length > 0
+    : step === 3 ? cities.length > 0
+    : triggers.length > 0;
+  const autopilotSegments = segments.filter((x) => PROSPECTABLE.includes(x));
 
   async function finish() {
     setSaving(true);
     setError("");
     try {
       await updateOrg({ name: orgName, settings: { brands, segments, cities, senderName, senderTitle, onboarded: true } });
+      // Autopilot preferences — never block onboarding on them (editable later on the Autopilot page)
+      await api
+        .saveAutopilot({
+          triggers,
+          segments: autopilotSegments.length ? autopilotSegments : ["architect", "id_firm", "developer"],
+          cities: cities.slice(0, 6),
+          schedule,
+        })
+        .catch(() => {});
       navigate("/dashboard?tour=1", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save");
@@ -54,7 +83,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Stepper */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {STEPS.map((label, i) => (
             <div key={label} className={`border-2 border-black px-2 py-2 text-[11px] font-black uppercase flex items-center gap-2 ${i === step ? "bg-secondary shadow-[2px_2px_0_0_#000]" : i < step ? "bg-[#599D77] text-white" : "bg-white"}`}>
               <span className="size-5 shrink-0 border-2 border-black bg-white text-black flex items-center justify-center text-[10px]">{i < step ? <Check className="size-3" /> : i + 1}</span>
@@ -158,6 +187,40 @@ export default function OnboardingPage() {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {step === 4 && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-xl font-black uppercase flex items-center gap-2"><Radar className="size-5" /> Let NERVE find firms</h2>
+                    <p className="text-sm text-muted-foreground">Autopilot watches the news for events that mean materials will be specified soon, finds the firms behind them and ranks them. Pick what to watch for.</p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {TRIGGER_CHOICES.map((t) => {
+                      const on = triggers.includes(t.id);
+                      return (
+                        <button key={t.id} type="button" onClick={() => toggle(triggers, t.id, setTriggers)} className={`text-left border-2 border-black p-2.5 transition-all ${on ? "bg-accent shadow-[3px_3px_0_0_#000]" : "bg-white opacity-70 hover:opacity-100"}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-sm">{t.label}</span>
+                            <span className={`ml-auto size-5 shrink-0 border-2 border-black flex items-center justify-center ${on ? "bg-black text-white" : "bg-white"}`}>{on && <Check className="size-3" />}</span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">{t.hint}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-black uppercase">Run automatically</p>
+                    <div className="flex gap-1.5">
+                      {(["off", "daily", "weekly"] as const).map((s) => (
+                        <button key={s} type="button" onClick={() => setSchedule(s)} className={`border-2 border-black px-3 py-1 text-xs font-bold uppercase ${schedule === s ? "bg-black text-white" : "bg-white"}`}>{s}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[11px] font-bold border-2 border-black bg-[#FFF6D6] px-2.5 py-2">
+                    Finding firms is cheap; the full 10-agent pipeline is not (~2 web searches and ~7 AI calls per firm). By default Autopilot finds 10 firms and runs the full pipeline for the top 3 only; the rest are shortlisted for you to run on demand. It searches the cities you picked{cities.length > 6 ? " (the first 6)" : ""}. Nothing is ever sent from here.
+                  </p>
                 </div>
               )}
             </motion.div>

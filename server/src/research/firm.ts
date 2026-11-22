@@ -12,6 +12,7 @@ import { config } from "../config.js";
 import { llmEnabled, llmGenerateText } from "../lib/llm.js";
 import { tavilyEnabled, apolloEnabled } from "../lib/runtime.js";
 import { SEGMENTS, normalizeCity, type Segment } from "../allhome/catalog.js";
+import { recordUsage } from "../lib/usage.js";
 
 export type SignalCategoryLive =
   | "project_launch" | "award_publication" | "possession_milestone" | "exhibition"
@@ -44,12 +45,13 @@ export interface FirmResearch {
   researchedAt: string;
 }
 
-interface TavilyResult { title: string; url: string; content: string; published_date?: string; score?: number }
+export interface TavilyResult { title: string; url: string; content: string; published_date?: string; score?: number }
 
 const cache = new Map<string, { at: number; value: FirmResearch }>();
 const TTL = 60 * 60_000;
 
-async function tavily(query: string, opts: { topic?: "general" | "news"; days?: number; max?: number } = {}): Promise<{ results: TavilyResult[]; answer?: string }> {
+export async function tavily(query: string, opts: { topic?: "general" | "news"; days?: number; max?: number } = {}): Promise<{ results: TavilyResult[]; answer?: string }> {
+  recordUsage("tavily");
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -94,6 +96,7 @@ const AGGREGATORS = /(linkedin|facebook|instagram|justdial|indiamart|glassdoor|z
 
 async function apolloOrg(domain: string): Promise<FirmResearch["apollo"]> {
   try {
+    recordUsage("apollo");
     const res = await fetch(`https://api.apollo.io/api/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`, {
       headers: { "X-Api-Key": config.apolloApiKey, "Cache-Control": "no-cache" },
       signal: AbortSignal.timeout(10_000),

@@ -40,6 +40,10 @@ export function usersCol()            { return getDB().collection<StringIdDoc>("
 export function orgsCol()             { return getDB().collection<StringIdDoc>("orgs"); }
 export function visitsCol()           { return getDB().collection<StringIdDoc>("visits"); }
 export function crmSyncCol()          { return getDB().collection<StringIdDoc>("crm_sync"); }
+// Autopilot prospecting
+export function autopilotCol()        { return getDB().collection<StringIdDoc>("autopilot"); }
+export function prospectRunsCol()     { return getDB().collection<StringIdDoc>("prospect_runs"); }
+export function prospectsCol()        { return getDB().collection<StringIdDoc>("prospects"); }
 
 // ─── Create indexes for common queries ───
 export async function ensureIndexes(): Promise<void> {
@@ -63,5 +67,11 @@ export async function ensureIndexes(): Promise<void> {
   await db.collection("users").createIndex({ email: 1 }, { unique: true });
   await db.collection("visits").createIndex({ orgId: 1, scheduledAt: 1 });
   await db.collection("crm_sync").createIndex({ orgId: 1, leadId: 1 });
+  await db.collection("prospect_runs").createIndex({ orgId: 1, startedAt: -1 });
+  await db.collection("prospect_runs").createIndex({ status: 1 });
+  await db.collection("prospects").createIndex({ orgId: 1, createdAt: -1 });
+  await db.collection("prospects").createIndex({ orgId: 1, runId: 1 });
+  await db.collection("prospects").createIndex({ orgId: 1, nameKey: 1 });
+  await db.collection("autopilot").createIndex({ schedule: 1, nextRunAt: 1 });
   console.log("🗂️  MongoDB indexes ensured");
 }

@@ -4,6 +4,7 @@ import { leadsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
 import { llmEnabled } from "../lib/llm.js";
 import { liveResearchEnabled } from "../lib/runtime.js";
+import { recordUsage } from "../lib/usage.js";
 import { researchFirm, discoverRealFirms } from "../research/firm.js";
 import { normalizeCity, PROJECT_TYPES, SEGMENTS, type ProjectStage, type ProjectType, type Segment } from "../allhome/catalog.js";
 import type { TargetedInput, DiscoveryInput, EnrichedLead, LeadInput } from "../types/index.js";
@@ -173,6 +174,7 @@ async function enrichViaApollo(firmName: string, segment: Segment, city: string,
   const sim = simulateEnrichment(firmName, segment, city, contactName, contactTitle);
   if (config.simulationMode || !config.apolloApiKey || segment === "homeowner") return sim;
   try {
+    recordUsage("apollo");
     const response = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Cache-Control": "no-cache", "X-Api-Key": config.apolloApiKey },
@@ -223,6 +225,15 @@ export const SAMPLE_FIRMS: Array<{ name: string; segment: Segment; city: string 
   { name: "The Rao Residence", segment: "homeowner", city: "Hyderabad" },
   { name: "The Khanna Villa", segment: "homeowner", city: "Delhi" },
   { name: "The Iyer Home", segment: "homeowner", city: "Chennai" },
+  // Used by Autopilot's sample scan (fictional — never researched live)
+  { name: "Vastu Verde Developers", segment: "developer", city: "Pune" },
+  { name: "Tidewater Realty", segment: "developer", city: "Chennai" },
+  { name: "Ferrous Line Architects", segment: "architect", city: "Pune" },
+  { name: "Halden & Rao Architects", segment: "architect", city: "Chennai" },
+  { name: "Kiln & Clay Interiors", segment: "id_firm", city: "Jaipur" },
+  { name: "Studio Anvaya", segment: "id_firm", city: "Kolkata" },
+  { name: "Arcadia Fitouts", segment: "contractor", city: "Bengaluru" },
+  { name: "Saltpan Hospitality Studio", segment: "architect", city: "Mumbai" },
 ];
 
 interface DiscoveryRec {

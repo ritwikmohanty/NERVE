@@ -20,6 +20,8 @@ import { extractLeadFromText } from "../allhome/capture.js";
 import { getIntegrationsReport } from "../integrations/status.js";
 import { liveResearchEnabled } from "../lib/runtime.js";
 import { buildBundle, buildRadar } from "../allhome/bundler.js";
+import { prospectingRoutes } from "../prospecting/routes.js";
+import { usageToday } from "../lib/usage.js";
 import {
   ALLHOME,
   SOURCES,
@@ -123,6 +125,12 @@ api.use("/*", async (c, next) => {
   if (PUBLIC.has(c.req.path) || c.req.path.startsWith("/api/auth/")) return next();
   return requireAuth(c, next);
 });
+
+// ─── Autopilot prospecting (NERVE finds the firms itself) ───
+api.route("/prospecting", prospectingRoutes);
+
+// ─── Shared API usage today (Tavily / Groq / Apollo) ───
+api.get("/usage", async (c) => c.json(await usageToday()));
 
 // ─── Delivery-channel readiness (WhatsApp / Email / LinkedIn / CRM) ───
 api.get("/integrations", async (c) => c.json(await getIntegrationsReport(c.req.query("refresh") === "1")));

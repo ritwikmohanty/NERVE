@@ -17,6 +17,7 @@ const AnalyticsPage = lazy(() => import("@/pages/analytics"));
 const CentresPage = lazy(() => import("@/pages/centres"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const BriefPage = lazy(() => import("@/pages/brief"));
+const AutopilotPage = lazy(() => import("@/pages/autopilot"));
 
 function PageLoader() {
   return (
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="centres" element={<Suspense fallback={<PageLoader />}><CentresPage /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
             <Route path="brief" element={<Suspense fallback={<PageLoader />}><BriefPage /></Suspense>} />
+            <Route path="autopilot" element={<Suspense fallback={<PageLoader />}><AutopilotPage /></Suspense>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

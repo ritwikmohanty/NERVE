@@ -29,8 +29,19 @@ export interface TargetedInput extends ProjectContext {
   contactPhone?: string;
   location?: string;
   additionalContext?: string;
-  /** Where the lead came from: manual form, quick capture, discovery */
-  origin?: "form" | "capture" | "discovery" | "seed";
+  /** Where the lead came from: manual form, quick capture, discovery, autopilot prospecting */
+  origin?: "form" | "capture" | "discovery" | "seed" | "autopilot";
+  /** The real-world event that surfaced this firm (Autopilot) — becomes Agent 2's top signal */
+  trigger?: TriggerSignal;
+}
+
+/** A dated, sourced event about a firm, found by Autopilot prospecting. */
+export interface TriggerSignal {
+  title: string;
+  category: "project_launch" | "award_publication" | "office_opening" | "funding" | "possession_milestone" | "other";
+  url?: string;
+  date?: string;
+  detail?: string;
 }
 
 // Mode 2: Discovery — system recommends companies based on user's product

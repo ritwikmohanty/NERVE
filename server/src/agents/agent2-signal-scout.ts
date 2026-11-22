@@ -4,7 +4,8 @@ import { signalsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
 import { PROJECT_TYPES, SEGMENTS } from "../allhome/catalog.js";
 import { tavilyEnabled } from "../lib/runtime.js";
-import type { EnrichedLead, Signal, SignalBundle, SignalCategory, SignalStrength } from "../types/index.js";
+import { recordUsage } from "../lib/usage.js";
+import type { EnrichedLead, Signal, SignalBundle, SignalCategory, SignalStrength, TargetedInput } from "../types/index.js";
 
 const AGENT_NUMBER = 2;
 const AGENT_NAME = "Signal Scout";
@@ -21,6 +22,7 @@ interface SearchResult {
 async function searchTavily(query: string, lead: EnrichedLead): Promise<SearchResult[]> {
   if (!tavilyEnabled()) return simulateSignals(lead);
   try {
+    recordUsage("tavily");
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -192,6 +194,25 @@ export async function runSignalScoutAgent(lead: EnrichedLead): Promise<SignalBun
         recencyWeight: weight,
       };
     });
+    }
+
+    // Autopilot: the event that surfaced this firm is the freshest, most relevant signal
+    const trigger = (lead.rawInput as TargetedInput | undefined)?.trigger;
+    if (trigger?.title && !signals.some((s) => (trigger.url && s.sourceUrl === trigger.url) || s.title === trigger.title)) {
+      const { recencyDays, weight } = recency(trigger.date);
+      signals.unshift({
+        id: nanoid(),
+        category: trigger.category as SignalCategory,
+        title: trigger.title,
+        description: (trigger.detail || trigger.title).slice(0, 300),
+        source: trigger.url ? safeHostname(trigger.url) : "Autopilot (sample)",
+        sourceUrl: trigger.url,
+        dateDetected: trigger.date || new Date().toISOString(),
+        recencyDays: trigger.date ? recencyDays : 14,
+        strength: "HIGH",
+        // Always ranked first — it's why this firm was picked, so Touch 1 should open with it
+        recencyWeight: Math.min(1, Math.max((trigger.date ? weight : 0.8) + 0.05, ...signals.map((s) => s.recencyWeight + 0.01))),
+      });
     }
     signals.sort((a, b) => b.recencyWeight - a.recencyWeight);
 

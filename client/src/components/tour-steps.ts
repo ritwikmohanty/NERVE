@@ -10,6 +10,7 @@ export function tourIdForPath(pathname: string): string {
   if (pathname.startsWith("/dashboard/activity")) return "activity";
   if (pathname.startsWith("/dashboard/settings")) return "settings";
   if (pathname.startsWith("/dashboard/brief")) return "brief";
+  if (pathname.startsWith("/dashboard/autopilot")) return "autopilot";
   return "dashboard";
 }
 
@@ -19,6 +20,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: '[data-tour="sending-notice"]', title: "Nothing is sent in the demo", body: "NERVE writes and schedules every message, but real sending needs the company's own WhatsApp Business number, email domain and LinkedIn profiles connected. For AllHome that's your accounts, not NERVE's." },
     { target: '[data-tour="lead-list"]', title: "Live missions", body: "Each row is an architect, designer, developer or homeowner NERVE researched, scored and contacted. Open one to watch all 10 agents' reasoning." },
     { target: '[data-tour="nav-new"]', title: "Launch a mission", body: "Target a B2B specifier or a B2C homeowner, discover firms by city, or paste a WhatsApp chat into Quick Capture." },
+    { target: '[data-tour="nav-autopilot"]', title: "Or let NERVE find the firms", body: "Autopilot watches the news for project launches, hotel signings, fit-outs, awards and developer land deals, then picks the firms about to specify materials — no firm names needed." },
     { target: '[data-tour="nav-centres"]', title: "Experience centres", body: "Every message ends with an invite to the nearest AllHome centre. When a lead asks to visit, NERVE books it." },
     { target: '[data-tour="nav-calendar"]', title: "Stage-timed calendar", body: "Touch 3 is scheduled just before the next brand's specification window opens — e.g. pre-specify Ledlum lighting before MEP." },
     { target: '[data-tour="nav-brief"]', title: "The AllHome Brief", body: "The verified knowledge base every draft is grounded in — brand figures, product systems, partners and sources." },
@@ -26,7 +28,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: '[data-tour="help"]', title: "A guide on every page", body: "Each page has its own short guide — it opens the first time you visit, and this button replays it any time." },
   ],
   new: [
-    { target: '[data-tour="mission-tabs"]', title: "Four ways to start", body: "B2B for architects, ID firms, developers and contractors; B2C for homeowners; Discover to find firms by city; Quick Capture to paste a WhatsApp chat or business card." },
+    { target: '[data-tour="mission-tabs"]', title: "Four ways to start", body: "B2B for architects, ID firms, developers and contractors; B2C for homeowners; Discover to find firms by city; Quick Capture to paste a WhatsApp chat or business card. To find firms from live news events automatically, use Autopilot." },
     { target: '[data-tour="mission-form"]', title: "Project context matters", body: "Segment, project type, construction stage and city drive everything downstream — which brands are pitched, when, and which experience centre to invite them to. Leave contact fields blank and Agent 1 enriches them." },
     { target: '[data-tour="mission-preview"]', title: "Live bundle preview", body: "Change the stage or project type and watch the recommended AllHome bundle and the specification-window radar update instantly — before anything is launched." },
     { target: '[data-tour="sending-notice"]', title: "Before you launch", body: "Messages are generated and scheduled but only simulated until the company's own sending accounts are connected in Settings." },
@@ -61,6 +63,15 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   activity: [
     { target: '[data-tour="activity-status"]', title: "Live event stream", body: "A real-time feed of everything the agents do in this workspace, streamed from the server." },
     { target: '[data-tour="activity-feed"]', title: "Watch it work", body: "Keep this open in one tab and launch a mission in another — each agent's progress appears here as it happens." },
+  ],
+  autopilot: [
+    { target: '[data-tour="autopilot-how"]', title: "NERVE finds the firms itself", body: "Autopilot searches recent news for events that mean materials will be specified soon, extracts the firms named in each article, and ranks them. A firm is only kept if its name literally appears in the source." },
+    { target: '[data-tour="autopilot-triggers"]', title: "Pick the triggers", body: "Each trigger is an event AllHome can act on — a launch locks facades, a fit-out buys lighting and hardware. Untick the ones you don't care about." },
+    { target: '[data-tour="autopilot-volume"]', title: "How many firms — and how many pipelines", body: "Finding firms is cheap. The full 10-agent pipeline is not (~2 web searches and ~7 AI calls per firm), so it only runs for the top few. The rest wait in a shortlist you can run on demand." },
+    { target: '[data-tour="autopilot-cost"]', title: "See the cost before you run", body: "The estimate shows exactly how many API calls this run will use, what running every firm would cost, and how much of today's shared budget is left. Autopilot never spends past that budget." },
+    { target: '[data-tour="autopilot-run"]', title: "Run it", body: "Live runs research real firms (read-only — nothing is sent). The sample scan uses fictional firms and makes no search calls, so you can try it any time." },
+    { target: '[data-tour="autopilot-results"]', title: "Ranked firms, with the why", body: "Every firm shows the event that surfaced it, its source, its triage score and the AllHome angle. Open a finished mission, run a shortlisted one, or dismiss it." },
+    { target: '[data-tour="autopilot-history"]', title: "Run history", body: "Every run is logged with what it found, how many pipelines it ran and anything it skipped (duplicates, daily limits, budget)." },
   ],
   brief: [
     { target: '[data-tour="brief-company"]', title: "What NERVE knows about AllHome", body: "Company positioning, figures, founders and funding — taken from AllHome's website, its 2026 brochure and press coverage." },

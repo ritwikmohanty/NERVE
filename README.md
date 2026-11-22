@@ -18,6 +18,7 @@ AllHome sells premium architectural and interior products through 7 brands: Meta
 | Feature | What it does |
 |---|---|
 | **AllHome Brief** | Holds verified facts for every brand: figures, named product systems, services, international partners and founders, all from allhome.in and the 2026 brochure with source links. Drafts may only quote facts from this page. |
+| **Autopilot prospecting** | NERVE finds the firms itself. It scans recent news for trigger events (project launches, hotel signings, office and retail fit-outs, developer land deals, awards, new studios), extracts the firms named in each article and ranks them with a free triage score. The full 10-agent pipeline runs only for the top few, and the rest are shortlisted to run on demand. It can run daily or weekly, shows the API cost before each run and never spends past a shared daily budget. |
 | **Live firm research** | Uses Tavily to search the web and news, and Groq to turn the results into a structured profile with summary, principals, public projects and dated signals, keeping the sources. It only reads information and never sends anything. Contact details and projects are never invented for real firms. |
 | **Grounded drafting** | Each message opens with one detail that is specific to the recipient and can be checked, ties it to one concrete brand capability, and makes one ask. It shows the facts it was "grounded in". Clichés are banned, invented figures are rejected, and channel length limits are enforced. |
 | **One-Collective Brand Bundler** | Recommends a cross-brand bundle for the project's type, construction stage, segment and budget. |
@@ -177,6 +178,7 @@ npx mastra dev
 | `/` | Landing page |
 | `/dashboard` | Command Center — all leads with status |
 | `/dashboard/new` | New Mission — targeted or discovery mode form |
+| `/dashboard/autopilot` | Autopilot — trigger-based prospecting, cost estimate, ranked firms, run history |
 | `/dashboard/pipeline/:id` | Pipeline — 7-phase agent visualizer with live SSE |
 | `/dashboard/activity` | Activity log |
 | `/dashboard/calendar` | Outreach Calendar + AI Schedule Chatbot |
@@ -252,6 +254,20 @@ GET /api/events?leadId=<id>
 | `branch_decision` | Cadence branch chosen |
 | `pipeline_complete` | All 10 agents done |
 | `error` | Any agent failure |
+
+---
+
+### Autopilot prospecting
+```text
+GET   /api/prospecting                    # config, limits, cost estimate, today's API usage, recent runs
+PATCH /api/prospecting/config             # triggers, segments, cities, firmsPerRun, pipelinesPerRun, lookbackDays, schedule
+POST  /api/prospecting/run                # { "sample": false } live scan, or { "sample": true } fictional, no-search scan
+GET   /api/prospecting/runs/:id           # run progress + ranked firms
+POST  /api/prospecting/prospects/:id/run  # run the full pipeline for one shortlisted firm
+POST  /api/prospecting/prospects/:id/dismiss
+GET   /api/usage                          # Tavily / Groq / Apollo calls used today vs the daily budget
+```
+Each live scan query costs about 1 web search and 1 AI call. Each full pipeline costs about 2 web searches and 7 AI calls, which is why only the top few firms get one. Budgets and caps are set with `DAILY_*_BUDGET` and `AUTOPILOT_*` (see `server/.env.example`). The shared demo workspace has lower caps and no scheduling.
 
 ---
 

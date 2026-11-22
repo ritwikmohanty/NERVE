@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Rocket, Loader2, Search, Building2, Home, ClipboardPaste, Wand2, Sparkles, AlertTriangle } from "lucide-react";
+import { Rocket, Loader2, Search, Building2, Home, ClipboardPaste, Wand2, Sparkles, AlertTriangle, Radar, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -311,6 +311,11 @@ export default function NewLeadPage() {
               <h2 className="text-lg font-black uppercase">Find specifiers</h2>
               <p className="text-xs font-semibold text-muted-foreground">NERVE discovers firms, enriches them and runs the full pipeline on each. In simulation mode it uses clearly fictional sample firms.</p>
             </div>
+            <Link to="/dashboard/autopilot" className="flex items-center gap-2 border-2 border-black bg-[#FFDA5C] px-3 py-2 text-xs font-bold shadow-[2px_2px_0_0_#000]">
+              <Radar className="size-4 shrink-0" />
+              <span>Want firms found from live news — project launches, hotel signings, fit-outs — on a schedule, with cost limits? Use <b>Autopilot</b>.</span>
+              <ArrowRight className="size-4 ml-auto shrink-0" />
+            </Link>
             <div className="space-y-1.5">
               <Label>Segment</Label>
               <select className={selectCls} value={discSegment} onChange={(e) => setDiscSegment(e.target.value as Segment)}>
