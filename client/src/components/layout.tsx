@@ -1,8 +1,9 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { NerveLogo } from "@/components/brand/logo";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, UserPlus, Activity, Calendar, Settings, Wifi, WifiOff, Cpu, Zap, MapPin, BarChart3, LogOut, HelpCircle, Menu, X, Search, BookOpen, Radar,
+  LayoutDashboard, UserPlus, Activity, Calendar, Settings, Wifi, WifiOff, Zap, MapPin, BarChart3, LogOut, HelpCircle, Menu, X, Search, BookOpen, Radar,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -53,15 +54,7 @@ export default function Layout() {
   const sidebar = (
     <>
       <Link to="/dashboard" className="p-5 pb-4 block border-b-2 border-black hover:bg-secondary transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="size-11 rounded-md bg-primary border-2 border-black shadow-[3px_3px_0_0_#000] flex items-center justify-center">
-            <Cpu className="size-5 text-white" />
-          </div>
-          <div>
-            <h1 className="font-black text-xl tracking-tight uppercase leading-none">NERVE</h1>
-            <p className="text-[10px] text-muted-foreground tracking-[0.18em] font-bold uppercase mt-1">AllHome Edition</p>
-          </div>
-        </div>
+        <NerveLogo size={40} sub="AllHome edition" />
       </Link>
 
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
@@ -150,7 +143,7 @@ export default function Layout() {
           <button onClick={() => setMobileOpen(true)} className="size-8 border-2 border-black flex items-center justify-center" aria-label="Open menu">
             <Menu className="size-4" />
           </button>
-          <span className="font-black uppercase text-sm">NERVE · AllHome</span>
+          <NerveLogo size={28} sub={null} />
           <button onClick={startTour} className="ml-auto h-8 px-2 border-2 border-black flex items-center gap-1 text-[11px] font-black uppercase" aria-label="Show the guide for this page">
             <HelpCircle className="size-4" /> Guide
           </button>

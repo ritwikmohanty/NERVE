@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { NerveLogo } from "@/components/brand/logo";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Cpu, Loader2, PlayCircle, Sparkles, Building2, Ruler, Lightbulb, Bath, PaintBucket } from "lucide-react";
+import { ArrowRight, Loader2, PlayCircle, Sparkles, Building2, Ruler, Lightbulb, Bath, PaintBucket } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,13 +69,7 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
       {/* ── Pitch panel ── */}
       <div className="hidden lg:flex flex-col justify-between border-r-2 border-black bg-[#1A1A18] text-white p-10">
         <Link to="/" className="flex items-center gap-3">
-          <div className="size-11 rounded-md bg-primary border-2 border-white flex items-center justify-center">
-            <Cpu className="size-5" />
-          </div>
-          <div>
-            <p className="font-black text-xl tracking-tight">NERVE</p>
-            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">AllHome Edition</p>
-          </div>
+          <NerveLogo size={44} sub="AllHome edition" tone="dark" />
         </Link>
 
         <div className="space-y-7 max-w-lg">
@@ -111,10 +106,9 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
       {/* ── Form panel ── */}
       <div className="flex items-center justify-center p-6 sm:p-10">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-6">
-          <div className="lg:hidden flex items-center gap-2 mb-2">
-            <Cpu className="size-5" />
-            <span className="font-black">NERVE · AllHome Edition</span>
-          </div>
+          <Link to="/" className="lg:hidden flex mb-2">
+            <NerveLogo size={36} sub="AllHome edition" />
+          </Link>
 
           {/* Demo first — the fastest way to see it working */}
           <button

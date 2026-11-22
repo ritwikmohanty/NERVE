@@ -48,7 +48,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: '[data-tour="centres-visits"]', title: "Upcoming visits", body: "Visits are booked automatically when a lead asks to see products in person. Mark them done or no-show after the visit." },
   ],
   calendar: [
-    { target: '[data-tour="calendar-grid"]', title: "Every scheduled touch", body: "All 3-touch cadences and experience-centre visits on one month view. 📍 entries are visits." },
+    { target: '[data-tour="calendar-grid"]', title: "Every scheduled touch", body: "All 3-touch cadences and experience-centre visits on one month view. Entries marked Visit are experience-centre visits." },
     { target: '[data-tour="calendar-legend"]', title: "Channels at a glance", body: "Colour-coded by channel. Touch 3 often lands weeks out because it is timed to the next brand's specification window, not a fixed follow-up." },
     { target: '[data-tour="calendar-detail"]', title: "Day details", body: "Click a date to see who's being contacted, which brands are pitched and whether the message would really be sent." },
     { target: '[data-tour="calendar-chat"]', title: "Ask the schedule", body: "Ask the AI about the schedule, for example “What's going out this week?” or “Which visits are booked?”." },

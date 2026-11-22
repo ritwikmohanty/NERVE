@@ -148,38 +148,38 @@ function generateChannelHeuristics(
 
   if (response.sentiment === "positive") {
     heuristics.push(
-      `✅ ${ch(strategy.primaryChannel)} delivered a positive response. This channel works for leads in the ${strategy.timezone} timezone`
+      `${ch(strategy.primaryChannel)} delivered a positive response. This channel works for leads in the ${strategy.timezone} timezone`
     );
     if (strategy.toneFramework) {
       heuristics.push(
-        `✅ "${strategy.toneFramework.replace(/_/g, " ")}" tone framework generated positive engagement. Reinforcing it as preferred for similar persona types`
+        `"${strategy.toneFramework.replace(/_/g, " ")}" tone framework generated positive engagement. Reinforcing it as preferred for similar persona types`
       );
     }
     if (strategy.secondaryChannel) {
       heuristics.push(
-        `📊 ${ch(strategy.secondaryChannel)} was designated as backup but wasn't needed; the primary channel was enough`
+        `${ch(strategy.secondaryChannel)} was designated as backup but wasn't needed; the primary channel was enough`
       );
     }
   } else if (response.sentiment === "negative") {
     heuristics.push(
-      `⚠️ ${ch(strategy.primaryChannel)} led to a negative response. Consider ${ch(strategy.secondaryChannel) || "alternative channels"} as primary for similar lead profiles (${strategy.timezone} timezone, same seniority level)`
+      `${ch(strategy.primaryChannel)} led to a negative response. Consider ${ch(strategy.secondaryChannel) || "alternative channels"} as primary for similar lead profiles (${strategy.timezone} timezone, same seniority level)`
     );
     heuristics.push(
-      `⚠️ "${strategy.toneFramework.replace(/_/g, " ")}" tone framework may have been too ${strategy.toneFramework === "growth_urgency" ? "aggressive" : strategy.toneFramework === "challenger" ? "provocative" : "direct"} for this persona. Flagged for manual review`
+      `"${strategy.toneFramework.replace(/_/g, " ")}" tone framework may have been too ${strategy.toneFramework === "growth_urgency" ? "aggressive" : strategy.toneFramework === "challenger" ? "provocative" : "direct"} for this persona. Flagged for manual review`
     );
     heuristics.push(
-      `🔴 Lead marked do-not-contact and removed from all active cadences and future campaigns`
+      `Lead marked do-not-contact and removed from all active cadences and future campaigns`
     );
   } else if (response.sentiment === "no_reply") {
     heuristics.push(
-      `📊 No reply via ${ch(strategy.primaryChannel)} after Touch 1. ${strategy.secondaryChannel ? `Recommend switching to ${ch(strategy.secondaryChannel)} for Touch 2` : "Consider adding a secondary channel (LinkedIn DM or WhatsApp) for multi-channel approach"}`
+      `No reply via ${ch(strategy.primaryChannel)} after Touch 1. ${strategy.secondaryChannel ? `Recommend switching to ${ch(strategy.secondaryChannel)} for Touch 2` : "Consider adding a secondary channel (LinkedIn DM or WhatsApp) for multi-channel approach"}`
     );
     heuristics.push(
       `⏰ Cadence timing (${strategy.timezone}, first send: ${strategy.sendTimestamp.slice(0, 10)}) may need adjustment. Test sending at different times for this timezone`
     );
   } else {
     heuristics.push(
-      `📊 Neutral response via ${ch(strategy.primaryChannel)}. Continue the cadence with Touch 2 via ${ch(strategy.cadence[1]?.channel || strategy.primaryChannel)} as planned`
+      `Neutral response via ${ch(strategy.primaryChannel)}. Continue the cadence with Touch 2 via ${ch(strategy.cadence[1]?.channel || strategy.primaryChannel)} as planned`
     );
   }
 
@@ -199,14 +199,14 @@ function generateToneRules(
 
   if (response.sentiment === "positive") {
     rules.push(
-      `📗 ${persona.archetypeLabel} persona + "${toneLabel}" tone = EFFECTIVE. Recorded as a preferred combination (confidence: ${Math.round(persona.confidence * 100)}%)`
+      `${persona.archetypeLabel} persona + "${toneLabel}" tone = EFFECTIVE. Recorded as a preferred combination (confidence: ${Math.round(persona.confidence * 100)}%)`
     );
     rules.push(
-      `📗 Traits that responded well: ${persona.traits.slice(0, 3).join(", ")}. Prioritise these in future persona matching`
+      `Traits that responded well: ${persona.traits.slice(0, 3).join(", ")}. Prioritise these in future persona matching`
     );
   } else if (response.sentiment === "negative") {
     rules.push(
-      `📕 ${persona.archetypeLabel} persona + "${toneLabel}" tone = INEFFECTIVE. Flagging this combination to avoid in future`
+      `${persona.archetypeLabel} persona + "${toneLabel}" tone = INEFFECTIVE. Flagging this combination to avoid in future`
     );
     // Suggest alternative tones with reasoning
     const alternatives: Record<string, { tone: string; reason: string }> = {
@@ -218,18 +218,18 @@ function generateToneRules(
     };
     const alt = alternatives[strategy.toneFramework];
     if (alt) {
-      rules.push(`📕 Recommendation: Use "${alt.tone.replace(/_/g, " ")}" for ${persona.archetypeLabel} personas instead. ${alt.reason}`);
+      rules.push(`Recommendation: Use "${alt.tone.replace(/_/g, " ")}" for ${persona.archetypeLabel} personas instead. ${alt.reason}`);
     }
     rules.push(
-      `📕 Messaging to avoid for this persona type: ${persona.avoidInMessaging.join(", ")}`
+      `Messaging to avoid for this persona type: ${persona.avoidInMessaging.join(", ")}`
     );
   } else if (response.sentiment === "neutral") {
     rules.push(
-      `📒 ${persona.archetypeLabel} + "${toneLabel}" = INCONCLUSIVE. Keep the current approach for Touch 2 but increase specificity`
+      `${persona.archetypeLabel} + "${toneLabel}" = INCONCLUSIVE. Keep the current approach for Touch 2 but increase specificity`
     );
   } else {
     rules.push(
-      `📒 No reply with "${toneLabel}" tone for ${persona.archetypeLabel} persona. Not enough data to adjust tone rules. Continue cadence.`
+      `No reply with "${toneLabel}" tone for ${persona.archetypeLabel} persona. Not enough data to adjust tone rules. Continue cadence.`
     );
   }
 
@@ -294,7 +294,7 @@ export async function runLearningLoopAgent(
       updatedAt: new Date().toISOString(),
     };
     if (strategy.bundle && response.sentiment === "positive") {
-      heuristicUpdates.push(`🧩 Bundle "${strategy.bundle.items.map((i) => i.brandName).join(" + ")}" converted for ${segment || "this"} segment. Boosting it for similar projects`);
+      heuristicUpdates.push(`Bundle "${strategy.bundle.items.map((i) => i.brandName).join(" + ")}" converted for ${segment || "this"} segment. Boosting it for similar projects`);
     }
 
     // 5. Persist learning history

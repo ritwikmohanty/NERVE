@@ -395,7 +395,7 @@ export default function CalendarPage() {
                             channelColor(ev.channel)
                           )}
                         >
-                          {ev.kind === "visit" ? `📍 ${ev.contactName.split(" ")[0]} · ${ev.centreCity}` : `${ev.contactName.split(" ")[0]} · T${ev.touchNumber}`}
+                          {ev.kind === "visit" ? `Visit: ${ev.contactName.split(" ")[0]}, ${ev.centreCity}` : `${ev.contactName.split(" ")[0]} · T${ev.touchNumber}`}
                         </div>
                       ))}
                       {cell.events.length > 3 && (

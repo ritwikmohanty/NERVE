@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { NerveLogo } from "@/components/brand/logo";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { BRANDS } from "./data";
-import { DemoButton, Section, Swatch, display } from "./ui";
+import { DemoButton, Section, Swatch } from "./ui";
 
 const LINKS = [
   { href: "#how", label: "How it works" },
@@ -14,15 +15,7 @@ const LINKS = [
 export function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30 rounded-[4px]">
-      <span aria-hidden className="size-9 grid place-items-center bg-[#EA435F] border-[3px] border-black rounded-[6px] shadow-[2px_2px_0_0_#000]">
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round">
-          <path d="M4 20V4l16 16V4" />
-        </svg>
-      </span>
-      <span className="leading-none">
-        <span className={`${display} block text-[19px] font-[900] tracking-[-0.02em]`}>NERVE</span>
-        <span className="block text-[10.5px] font-bold text-black/60 mt-0.5">for AllHome</span>
-      </span>
+      <NerveLogo size={38} />
     </Link>
   );
 }

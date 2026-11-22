@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { NerveMark } from "@/components/brand/logo";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronLeft, ChevronRight, Cpu, Loader2, MapPin, Radar } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, MapPin, Radar } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -73,9 +74,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background flex items-start sm:items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-3xl space-y-6">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-md bg-primary border-2 border-black shadow-[2px_2px_0_0_#000] flex items-center justify-center">
-            <Cpu className="size-5 text-white" />
-          </div>
+          <NerveMark size={40} />
           <div>
             <p className="font-black uppercase">Set up your workspace</p>
             <p className="text-xs font-bold text-muted-foreground">Takes under a minute. You can change all of this later in Settings</p>

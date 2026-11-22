@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FadeIn, AnimatedCounter, StatusDot } from "@/components/ui/motion";
 import { SendingBanner } from "@/components/sending-notice";
+import { IconBundle, IconContent, IconEnrich, IconIntent, IconLearn, IconSend, IconSignals, IconVisit } from "@/components/brand/pipeline-icons";
 import {
   Building2,
   User,
@@ -203,14 +204,14 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 {[
-                  { n: 1, name: "Enrich firm + project", icon: "📥", c: "bg-white" },
-                  { n: 2, name: "Project signals", icon: "🔍", c: "bg-white" },
-                  { n: "3+4", name: "Intent + Persona", icon: "⚡", parallel: true, c: "bg-[#CEEBFC]" },
-                  { n: 5, name: "Bundle + Timing", icon: "🧩", c: "bg-white" },
-                  { n: "6+7", name: "Content + Explain", icon: "✍️", parallel: true, c: "bg-[#CEEBFC]" },
-                  { n: 8, name: "WhatsApp / Email", icon: "📤", c: "bg-white" },
-                  { n: 9, name: "Reply → Visit", icon: "📍", c: "bg-white" },
-                  { n: 10, name: "Learning", icon: "🧠", c: "bg-white" },
+                  { n: 1, name: "Enrich firm + project", Icon: IconEnrich, c: "bg-white" },
+                  { n: 2, name: "Project signals", Icon: IconSignals, c: "bg-white" },
+                  { n: "3+4", name: "Intent + Persona", Icon: IconIntent, parallel: true, c: "bg-[#CEEBFC]" },
+                  { n: 5, name: "Bundle + Timing", Icon: IconBundle, c: "bg-white" },
+                  { n: "6+7", name: "Content + Explain", Icon: IconContent, parallel: true, c: "bg-[#CEEBFC]" },
+                  { n: 8, name: "WhatsApp / Email", Icon: IconSend, c: "bg-white" },
+                  { n: 9, name: "Reply → Visit", Icon: IconVisit, c: "bg-white" },
+                  { n: 10, name: "Learning", Icon: IconLearn, c: "bg-white" },
                 ].map((agent, i, arr) => (
                   <div key={i} className="flex items-center gap-3 shrink-0">
                     <motion.div
@@ -219,7 +220,7 @@ export default function DashboardPage() {
                       transition={{ delay: 0.2 + i * 0.08 }}
                       className={`flex items-center gap-3 px-3 py-2 rounded-md border-2 border-black shadow-[2px_2px_0_0_#000] transition-transform hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#000] ${agent.c}`}
                     >
-                      <span className="text-lg">{agent.icon}</span>
+                      <span className="size-9 shrink-0 grid place-items-center rounded-[4px] border-2 border-black bg-[#F9F5F2]"><agent.Icon /></span>
                       <div>
                         <p className="text-[10px] font-black uppercase text-black">#{agent.n}</p>
                         <p className="text-xs font-bold uppercase whitespace-nowrap text-black">{agent.name}</p>
