@@ -82,6 +82,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: '[data-tour="settings-workspace"]', title: "Workspace & sender", body: "Messages are signed with this name, because specifiers reply to people, not brands." },
     { target: '[data-tour="settings-brands"]', title: "Brand catalog", body: "AllHome's 7 brands with product lines, specification stages and lead times. Untick a brand and the bundler stops recommending it." },
     { target: '[data-tour="settings-integrations"]', title: "Connect sending", body: "This is what turns the demo into production: each channel shows exactly what's connected and what's left, for example connecting a LinkedIn account in HeyReach or verifying an email domain in Resend." },
+    { target: '[data-tour="settings-usage"]', title: "API usage & health", body: "Today's calls to Tavily, Groq and Apollo against the daily limits, plus any provider errors and the fallback that was used. Past the limit, features fall back instead of failing." },
     { target: '[data-tour="settings-team"]', title: "Team", body: "Invite colleagues into the same workspace. They see the same missions, calendar and analytics." },
   ],
 };

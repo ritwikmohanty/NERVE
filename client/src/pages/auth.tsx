@@ -128,7 +128,7 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
               </div>
               <div className="flex-1">
                 <p className="font-black uppercase text-sm">Continue as AllHome demo</p>
-                <p className="text-xs font-semibold text-black/70">One click · pre-loaded with 8 live pipelines · guided tour</p>
+                <p className="text-xs font-semibold text-black/70">One click. Eleven missions already run, with a guided tour.</p>
               </div>
               <ArrowRight className="size-5" />
             </div>

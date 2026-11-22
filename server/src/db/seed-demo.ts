@@ -48,7 +48,14 @@ export async function seedDemoWorkspace(force = process.env.DEMO_RESET_ON_BOOT =
   const existing = await leadsCol().countDocuments({ orgId });
   if (existing > 0 && !force) {
     // Workspaces seeded before Autopilot existed get its sample run once
-    if (!(await prospectRunsCol().findOne({ orgId }))) await seedDemoAutopilot(orgId);
+    if (!(await prospectRunsCol().findOne({ orgId }))) {
+      suppressLLM(true); // the seeded Autopilot pipelines are offline, like the rest of the seed
+      try {
+        await seedDemoAutopilot(orgId);
+      } finally {
+        suppressLLM(false);
+      }
+    }
     console.log(`🏠 Demo workspace ready (${existing} leads)`);
     return;
   }

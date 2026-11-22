@@ -2,7 +2,7 @@ import { createGroq } from "@ai-sdk/groq";
 import { generateText, generateObject } from "ai";
 import { config } from "../config.js";
 import { isSeeding, setSeeding } from "./runtime.js";
-import { recordUsage } from "./usage.js";
+import { guardCall, recordFailure, recordUsage } from "./usage.js";
 import type { ZodSchema } from "zod";
 
 const groq = createGroq({
@@ -82,6 +82,11 @@ export async function llmGenerateText(
     throw new LLMUnavailableError("GROQ_API_KEY not set");
   }
 
+  try {
+    guardCall("groq");
+  } catch (e) {
+    throw new LLMUnavailableError(String((e as Error).message));
+  }
   let lastError: unknown;
   for (const model of MODEL_CHAIN) {
     try {
@@ -97,10 +102,14 @@ export async function llmGenerateText(
       return undash(text);
     } catch (error) {
       lastError = error;
-      if (!isQuotaError(error)) throw error;
+      if (!isQuotaError(error)) {
+        recordFailure("groq", error, "the caller's template or rule-based fallback");
+        throw error;
+      }
       console.warn(`[LLM] ${model} rate-limited${model !== MODEL_CHAIN[MODEL_CHAIN.length - 1] ? ", trying fallback model" : ""}`);
     }
   }
+  recordFailure("groq", `Rate limit on ${MODEL_CHAIN.join(" and ")}`, "the caller's template or rule-based fallback");
   throw new LLMUnavailableError(`Groq rate limit on all models: ${String(lastError).slice(0, 120)}`);
 }
 
@@ -116,6 +125,7 @@ export async function llmGenerateObject<T>(
   }
 
   try {
+    guardCall("groq");
     recordUsage("groq");
     const { object } = await generateObject({
       model: groq(MODEL),

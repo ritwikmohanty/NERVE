@@ -28,6 +28,10 @@ services:
         value: "40" # Autopilot never spends past this shared daily budget (Tavily free = 1,000/month)
       - key: DAILY_GROQ_BUDGET
         value: "400"
+      - key: TAVILY_DAILY_HARD_LIMIT
+        value: "50" # hard ceiling for every feature together; past it features fall back instead of calling Tavily
+      - key: GROQ_DAILY_HARD_LIMIT
+        value: "900"
       - key: JWT_SECRET
         generateValue: true
       - key: MONGO_URI

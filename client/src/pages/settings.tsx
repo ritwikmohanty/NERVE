@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Check, Loader2, Lock, Plug, RefreshCw, Save, Shield, UserPlus, Users } from "lucide-react";
+import { Check, Gauge, Loader2, Lock, Plug, RefreshCw, Save, Shield, UserPlus, Users } from "lucide-react";
 import { useIntegrations, refreshIntegrations } from "@/components/sending-notice";
+import { ApiUsagePanel } from "@/components/api-usage-panel";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
@@ -104,7 +105,7 @@ export default function SettingsPage() {
         </Section>
 
         <Section tour="settings-brands" title="Brand catalog" icon={<Plug className="size-4" />}>
-          <p className="text-xs font-semibold text-muted-foreground -mt-2">Product lines, specification windows and lead-time estimates the bundler uses for all seven brands. Lead times are planning estimates, not published figures.</p>
+          <p className="text-xs font-semibold text-muted-foreground -mt-2">Product lines, specification windows and lead times the bundler uses. Untick a brand this workspace doesn't sell and NERVE stops pitching it. Lead times are planning estimates, not published figures.</p>
           <div className="space-y-2">
             {catalog?.brands.map((b) => {
               const on = brands.includes(b.id);
@@ -200,6 +201,13 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
+        </Section>
+
+        <Section tour="settings-usage" title="API usage & health" icon={<Gauge className="size-4" />}>
+          <p className="text-xs font-semibold text-muted-foreground -mt-2">
+            Every call to a paid or rate-limited provider is counted. Past the daily safety limit, calls are held back and each feature uses its fallback, so the app keeps working and costs stay capped.
+          </p>
+          <ApiUsagePanel />
         </Section>
 
         <Section tour="settings-team" title="Team" icon={<UserPlus className="size-4" />}>

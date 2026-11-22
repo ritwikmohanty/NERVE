@@ -4,7 +4,7 @@ import { signalsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
 import { PROJECT_TYPES, SEGMENTS } from "../allhome/catalog.js";
 import { tavilyEnabled } from "../lib/runtime.js";
-import { recordUsage } from "../lib/usage.js";
+import { guardCall, recordFailure, recordUsage } from "../lib/usage.js";
 import type { EnrichedLead, Signal, SignalBundle, SignalCategory, SignalStrength, TargetedInput } from "../types/index.js";
 
 const AGENT_NUMBER = 2;
@@ -21,19 +21,25 @@ interface SearchResult {
 
 async function searchTavily(query: string, lead: EnrichedLead): Promise<SearchResult[]> {
   if (!tavilyEnabled()) return simulateSignals(lead);
+  // Never fall back to simulated news for a firm that may be real: no results means no signals.
   try {
+    guardCall("tavily");
     recordUsage("tavily");
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: config.tavilyApiKey, query, search_depth: "advanced", max_results: 8, include_answer: false }),
+      body: JSON.stringify({ api_key: config.tavilyApiKey, query, search_depth: "basic", max_results: 8, include_answer: false }),
       signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) return simulateSignals(lead);
+    if (!response.ok) {
+      recordFailure("tavily", `Tavily HTTP ${response.status}`, "no signals for this lead");
+      return [];
+    }
     const data = (await response.json()) as { results?: SearchResult[] };
-    return data.results?.length ? data.results : simulateSignals(lead);
-  } catch {
-    return simulateSignals(lead);
+    return data.results || [];
+  } catch (e) {
+    if (!(e instanceof Error && e.name === "QuotaGuardError")) recordFailure("tavily", e, "no signals for this lead");
+    return [];
   }
 }
 

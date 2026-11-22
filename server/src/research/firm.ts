@@ -12,7 +12,7 @@ import { config } from "../config.js";
 import { llmEnabled, llmGenerateText } from "../lib/llm.js";
 import { tavilyEnabled, apolloEnabled } from "../lib/runtime.js";
 import { SEGMENTS, normalizeCity, type Segment } from "../allhome/catalog.js";
-import { recordUsage } from "../lib/usage.js";
+import { guardCall, recordFailure, recordUsage } from "../lib/usage.js";
 
 export type SignalCategoryLive =
   | "project_launch" | "award_publication" | "possession_milestone" | "exhibition"
@@ -51,6 +51,7 @@ const cache = new Map<string, { at: number; value: FirmResearch }>();
 const TTL = 60 * 60_000;
 
 export async function tavily(query: string, opts: { topic?: "general" | "news"; days?: number; max?: number } = {}): Promise<{ results: TavilyResult[]; answer?: string }> {
+  guardCall("tavily");
   recordUsage("tavily");
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
@@ -65,8 +66,15 @@ export async function tavily(query: string, opts: { topic?: "general" | "news"; 
       include_answer: opts.topic !== "news",
     }),
     signal: AbortSignal.timeout(15_000),
+  }).catch((e) => {
+    recordFailure("tavily", e, "research continues without these results");
+    throw e;
   });
-  if (!res.ok) throw new Error(`Tavily ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(`Tavily HTTP ${res.status}${res.status === 429 || res.status === 432 ? " (quota or rate limit)" : ""}`);
+    recordFailure("tavily", err, "research continues without these results");
+    throw err;
+  }
   const data = (await res.json()) as { results?: TavilyResult[]; answer?: string };
   return { results: data.results || [], answer: data.answer };
 }
@@ -96,6 +104,7 @@ const AGGREGATORS = /(linkedin|facebook|instagram|justdial|indiamart|glassdoor|z
 
 async function apolloOrg(domain: string): Promise<FirmResearch["apollo"]> {
   try {
+    guardCall("apollo");
     recordUsage("apollo");
     const res = await fetch(`https://api.apollo.io/api/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`, {
       headers: { "X-Api-Key": config.apolloApiKey, "Cache-Control": "no-cache" },
@@ -108,6 +117,7 @@ async function apolloOrg(domain: string): Promise<FirmResearch["apollo"]> {
     }
     return { status: "ok", employees: data.organization.estimated_num_employees, industry: data.organization.industry, linkedin: data.organization.linkedin_url };
   } catch (e) {
+    if (!(e instanceof Error && e.name === "QuotaGuardError")) recordFailure("apollo", e, "research without Apollo data");
     return { status: "unavailable", note: String(e).slice(0, 120) };
   }
 }

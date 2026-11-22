@@ -556,8 +556,8 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
   const k = Math.min(cfg.pipelinesPerRun, fresh.length, dailyLeft, affordable);
   if (k < Math.min(cfg.pipelinesPerRun, fresh.length)) {
     await note(runId, dailyLeft < cfg.pipelinesPerRun
-      ? `Only ${k} pipeline${k === 1 ? "" : "s"} started because this workspace's daily limit is ${limits.maxPipelinesPerDay} pipelines.`
-      : `Only ${k} pipeline${k === 1 ? "" : "s"} started; that's all today's shared API budget allows.`);
+      ? `${k === 0 ? "No pipelines" : `Only ${k} pipeline${k === 1 ? "" : "s"}`} started because this workspace's daily limit is ${limits.maxPipelinesPerDay} pipelines.`
+      : `${k === 0 ? "No pipelines" : `Only ${k} pipeline${k === 1 ? "" : "s"}`} started; that's all today's shared API budget allows.`);
   }
   const pipelineIds = new Set(fresh.slice(0, k).map((s) => nameKey(s.c.companyName)));
 
@@ -599,7 +599,8 @@ async function executeRun(runId: string, orgId: string, cfg: AutopilotConfig, li
 
   // 4 ─ Full pipelines for the top K, one at a time through the global queue
   for (const d of docs.filter((x) => x.status === "queued")) {
-    await enqueue(() => runProspectPipeline(d._id, orgId, live));
+    // One firm failing must not stop the others
+    await enqueue(() => runProspectPipeline(d._id, orgId, live)).catch((err) => console.error(`🛰️  Pipeline for prospect ${d._id} failed:`, err));
     await prospectRunsCol().updateOne({ _id: runId }, { $inc: { pipelinesDone: 1 } });
   }
   await prospectRunsCol().updateOne({ _id: runId }, { $set: { status: "done", finishedAt: new Date().toISOString(), totalMs: Date.now() - started } });
@@ -666,7 +667,7 @@ export async function runProspectOnDemand(prospectId: string, orgId: string, rol
     throw new AutopilotError(`Not enough API budget left today. One pipeline needs ~${per.tavily} web searches and ~${per.groq} AI calls (${usage.remaining.tavily} searches and ${usage.remaining.groq} AI calls left).`, 429);
   }
   await prospectsCol().updateOne({ _id: prospectId }, { $set: { status: "queued" } });
-  void enqueue(() => runProspectPipeline(prospectId, orgId, live));
+  void enqueue(() => runProspectPipeline(prospectId, orgId, live)).catch((err) => console.error("🛰️  On-demand pipeline failed:", err));
 }
 
 // ─── Demo seed ───
@@ -689,57 +690,43 @@ export async function seedDemoAutopilot(orgId: string): Promise<void> {
   };
   await saveConfig(cfg);
 
+  // Behave exactly like a real run: firms that already have a mission are skipped, the rest are
+  // ranked by triage score, and the top 3 get a real (offline) pipeline. Callers suppress the LLM.
   const leads = await leadsCol().find({ orgId }).project({ _id: 1, companyName: 1 }).toArray();
-  const leadByKey = new Map(leads.map((l) => [nameKey(String(l.companyName)), String(l._id)]));
+  const existing = new Set(leads.map((l) => nameKey(String(l.companyName))));
   const startedAt = new Date(Date.now() - 2 * 3600_000).toISOString();
   const runId = nanoid();
-  const scored = scanSample(cfg)
-    .map((c) => ({ c, ...triage(c) }))
-    .sort((a, b) => b.score - a.score)
+  const all = scanSample(cfg).map((c) => ({ c, ...triage(c) }));
+  const skipped = all.filter((s) => existing.has(nameKey(s.c.companyName))).length;
+  const scored = all
+    .filter((s) => !existing.has(nameKey(s.c.companyName)))
+    .sort((x, y) => y.score - x.score)
     .slice(0, cfg.firmsPerRun);
+  const k = Math.min(cfg.pipelinesPerRun, scored.length);
 
-  // The run "picked" the top 3 firms that have a seeded mission for a full pipeline;
-  // other seeded firms show as already in the workspace, the rest stay shortlisted.
-  const picked = new Set(scored.filter((s) => leadByKey.has(nameKey(s.c.companyName))).slice(0, cfg.pipelinesPerRun).map((s) => nameKey(s.c.companyName)));
-  scored.sort((a, b) => Number(picked.has(nameKey(b.c.companyName))) - Number(picked.has(nameKey(a.c.companyName))) || b.score - a.score);
-
-  const docs = [];
-  for (const [i, s] of scored.entries()) {
-    const key = nameKey(s.c.companyName);
-    const leadId = leadByKey.get(key);
-    let score: number | undefined;
-    let tier: string | undefined;
-    if (leadId) {
-      const run = await agentRunsCol().findOne({ leadId, agentNumber: 3 }, { sort: { completedAt: -1 } });
-      try {
-        const out = run?.output ? JSON.parse(String(run.output)) : null;
-        score = out?.compositeScore;
-        tier = out?.tier;
-      } catch {
-        /* no score */
-      }
-    }
-    docs.push({
-      _id: nanoid(), orgId, runId, rank: i + 1, nameKey: key, companyName: s.c.companyName, segment: s.c.segment, city: s.c.city,
-      trigger: s.c.trigger, triggerLabel: TRIGGERS[s.c.trigger].label, title: s.c.title, detail: s.c.detail, allhomeAngle: TRIGGERS[s.c.trigger].allhomeAngle,
-      projectName: s.c.projectName, projectType: s.c.projectType, stage: s.c.stage, eventDate: s.c.date, dataSource: "sample",
-      triageScore: s.score, triageReasons: s.reasons,
-      status: (picked.has(key) ? "pipeline_done" : leadId ? "already_in_pipeline" : "shortlisted") as ProspectStatus,
-      leadId, score, tier, createdAt: startedAt,
-    });
-  }
-  const done = docs.filter((d) => d.status === "pipeline_done").length;
+  const docs = scored.map((s, i) => ({
+    _id: nanoid(), orgId, runId, rank: i + 1, nameKey: nameKey(s.c.companyName), companyName: s.c.companyName, segment: s.c.segment, city: s.c.city,
+    trigger: s.c.trigger, triggerLabel: TRIGGERS[s.c.trigger].label, title: s.c.title, detail: s.c.detail, allhomeAngle: TRIGGERS[s.c.trigger].allhomeAngle,
+    projectName: s.c.projectName, projectType: s.c.projectType, stage: s.c.stage, eventDate: s.c.date, dataSource: "sample",
+    triageScore: s.score, triageReasons: s.reasons,
+    status: (i < k ? "queued" : "shortlisted") as ProspectStatus,
+    createdAt: startedAt,
+  }));
   await prospectRunsCol().insertOne({
     _id: runId, orgId, by: "seed", mode: "sample", status: "done" as RunStatus,
     config: { triggers: cfg.triggers, segments: cfg.segments, cities: cfg.cities, firmsPerRun: cfg.firmsPerRun, pipelinesPerRun: cfg.pipelinesPerRun, lookbackDays: cfg.lookbackDays },
-    queriesPlanned: 4, queriesDone: 4, found: docs.length, pipelinesPlanned: done, pipelinesDone: done,
+    queriesPlanned: 4, queriesDone: 4, found: docs.length, pipelinesPlanned: k, pipelinesDone: k,
     notes: [
       "Sample scan: these firms and events are fictional. No API calls were made for the scan.",
-      `Full pipelines ran for the top ${done} firms only; the rest are shortlisted to save API calls. Running all ${docs.length} live would need ~${4 + docs.length * 2} web searches and ~${4 + docs.length * 7} AI calls, versus ~${4 + done * 2} and ~${4 + done * 7} for the top ${done}.`,
+      ...(skipped ? [`${skipped} firms already have a mission in this workspace and were skipped.`] : []),
+      `Full pipelines ran for the top ${k} firms only; the rest are shortlisted to save API calls. Running all ${docs.length} live would need ~${4 + docs.length * 2} web searches and ~${4 + docs.length * 7} AI calls, versus ~${4 + k * 2} and ~${4 + k * 7} for the top ${k}.`,
     ],
     startedAt, finishedAt: new Date(Date.now() - 2 * 3600_000 + 90_000).toISOString(),
   });
   if (docs.length) await prospectsCol().insertMany(docs);
+  for (const d of docs.slice(0, k)) {
+    await runProspectPipeline(d._id, orgId, false).catch((err) => console.error("Seed Autopilot pipeline failed:", err));
+  }
 }
 
 // ─── Scheduler + recovery ───

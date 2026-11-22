@@ -9,19 +9,20 @@ About 10 minutes. Everything below works in the shared demo workspace with sendi
 3. If someone has been clicking around the shared demo, restart the Render service. `DEMO_RESET_ON_BOOT=true` reseeds a clean workspace on every boot.
 4. Keep one real firm name ready for the live part (for example, an architecture practice you know in Delhi or Bengaluru).
 
-## 1. Landing page (30 seconds)
+## 1. Landing page (1 minute)
 
-- One line: "AllHome sells seven brands to architects, designers, developers and contractors. NERVE finds those specifiers, works out what they're about to buy, writes the outreach and books them into an experience centre."
-- Click **View the 10 Agents** to show the agent list, then **Try the Live Demo**.
+- The hero shows a building going through its stages. Click **Structure**, then **Fit-out**: the brands that light up and the WhatsApp draft change with the stage. That is the whole idea in one picture.
+- Scroll once to the **Every brand has a window** grid and click a stage column if anyone asks how NERVE decides what to pitch.
+- Click **Open the live demo**. It logs straight into the demo workspace (the first click can take up to a minute while the free server wakes; the button says so).
 
-## 2. Log in (10 seconds)
+## 2. The dashboard opens (10 seconds)
 
-- Click **Continue as AllHome demo**. The dashboard opens with a short guide; show two steps, then **Skip tour**.
+- A short guide opens. Show two steps, then **Skip tour**.
 - Every page has its own guide. The **Guide** button in the sidebar replays it.
 
 ## 3. Command Center (1 minute)
 
-- 8 missions, already run through all 10 agents. They are fictional firms, labelled SAMPLE.
+- 11 missions, already run through all 10 agents: 8 added by hand and 3 found by the seeded Autopilot run. They are fictional firms, labelled SAMPLE.
 - Point at the yellow banner: sending is locked; research uses live data, read-only.
 - Open **Studio Kaarva Architects**.
 
@@ -76,8 +77,9 @@ Use the stepper at the top (or the arrow keys).
 
 | Question | Answer |
 |---|---|
-| Are the demo firms real? | No. The 8 seeded firms and the Autopilot sample firms are fictional and labelled as such. Their emails use `.example` and their phone numbers start `+91-00000`, so nothing can reach a real person. Real firm names typed into New Mission, Discover or a live Autopilot run are researched live. |
+| Are the demo firms real? | No. The 11 seeded firms and the Autopilot sample firms are fictional and labelled as such. Their emails use `.example` and their phone numbers start `+91-00000`, so nothing can reach a real person. Real firm names typed into New Mission, Discover or a live Autopilot run are researched live. |
 | Can the AI make things up? | Drafts may only use facts from the AllHome Brief and the firm's sourced research. The AI edits a checked draft, and its output is rejected (falling back to the template) if it changes the greeting, alters a figure, asks more than one thing, uses filler phrases or flattery, or congratulates on old news. |
-| What does it cost? | Per full pipeline about 2 web searches and 7 AI calls. A shared daily budget (40 searches, 400 AI calls by default) caps everything Autopilot does. Per-workspace limits cap runs and pipelines per day. |
+| What does it cost? | Per full pipeline about 2 web searches and 7 AI calls. Autopilot stops at a shared daily budget (40 searches, 400 AI calls by default), and a hard safety limit (50 searches, 900 AI calls) covers every feature. Settings → API usage & health shows today's numbers. |
+| What if an API fails or runs out? | Every feature has a fallback: templates for messages, rule-based scoring, or "no public information found" for research. Nothing crashes, and Settings → API usage & health lists each error and the fallback used. |
 | Why not run the pipeline on every firm? | Cost. Finding and ranking firms is cheap; the full pipeline is not. Autopilot runs the top few and lets you choose the rest. |
 | Does it send messages? | Not in this deployment. Sending is locked. In production each channel uses AllHome's own account. |

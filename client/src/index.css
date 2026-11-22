@@ -198,3 +198,10 @@
   stroke-dasharray: 6 6;
   animation: flow 0.8s linear infinite;
 }
+
+/* Landing display face: Archivo at full width, like lettering on a site hoarding */
+.font-display {
+  font-family: "Archivo", "Inter", sans-serif;
+  font-stretch: 125%;
+  font-variation-settings: "wdth" 125;
+}

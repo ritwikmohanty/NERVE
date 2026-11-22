@@ -8,6 +8,12 @@ import { authRoutes } from "./auth/index.js";
 import { connectDB, ensureIndexes } from "./db/index.js";
 import { seedDemoWorkspace } from "./db/seed-demo.js";
 import { recoverInterruptedRuns, startScheduler } from "./prospecting/engine.js";
+import { primeUsage } from "./lib/usage.js";
+
+// Last line of defence: a stray rejected promise or thrown error in a background task is logged,
+// never allowed to take the whole server down mid-demo.
+process.on("unhandledRejection", (reason) => console.error("⚠️  Unhandled rejection (server kept running):", reason));
+process.on("uncaughtException", (err) => console.error("⚠️  Uncaught exception (server kept running):", err));
 
 const app = new Hono();
 
@@ -52,6 +58,7 @@ async function start() {
     throw err;
   }
   await ensureIndexes();
+  await primeUsage();
   await recoverInterruptedRuns();
   await seedDemoWorkspace();
 

@@ -568,6 +568,11 @@ export interface ApiUsage {
   used: ApiCalls;
   budget: ApiCalls;
   remaining: ApiCalls;
+  /** Hard daily safety limit for all features together */
+  hardLimit: ApiCalls;
+  failures: ApiCalls;
+  blocked: ApiCalls;
+  recentFailures: Array<{ at: string; provider: keyof ApiCalls; message: string; fallback: string }>;
 }
 
 export type ProspectRunStatus = "scanning" | "running_pipelines" | "done" | "failed" | "skipped_budget" | "interrupted";

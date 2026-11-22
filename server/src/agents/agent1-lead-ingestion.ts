@@ -4,7 +4,7 @@ import { leadsCol } from "../db/index.js";
 import { sseManager } from "../lib/sse.js";
 import { llmEnabled } from "../lib/llm.js";
 import { liveResearchEnabled } from "../lib/runtime.js";
-import { recordUsage } from "../lib/usage.js";
+import { guardCall, recordFailure, recordUsage } from "../lib/usage.js";
 import { researchFirm, discoverRealFirms } from "../research/firm.js";
 import { normalizeCity, PROJECT_TYPES, SEGMENTS, type ProjectStage, type ProjectType, type Segment } from "../allhome/catalog.js";
 import type { TargetedInput, DiscoveryInput, EnrichedLead, LeadInput } from "../types/index.js";
@@ -174,6 +174,7 @@ async function enrichViaApollo(firmName: string, segment: Segment, city: string,
   const sim = simulateEnrichment(firmName, segment, city, contactName, contactTitle);
   if (config.simulationMode || !config.apolloApiKey || segment === "homeowner") return sim;
   try {
+    guardCall("apollo");
     recordUsage("apollo");
     const response = await fetch("https://api.apollo.io/api/v1/mixed_people/api_search", {
       method: "POST",
@@ -181,7 +182,10 @@ async function enrichViaApollo(firmName: string, segment: Segment, city: string,
       body: JSON.stringify({ q_organization_name: firmName, q_person_name: contactName || undefined, per_page: 1 }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) return sim;
+    if (!response.ok) {
+      recordFailure("apollo", `Apollo HTTP ${response.status}`, "sample enrichment");
+      return sim;
+    }
     const data = (await response.json()) as {
       people?: Array<{ name?: string; title?: string; email?: string; linkedin_url?: string; organization?: { website_url?: string } }>;
     };
