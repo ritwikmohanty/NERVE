@@ -103,8 +103,9 @@ export async function runFullPipeline(pipelineId: string, lead: EnrichedLead, op
   await logAgentRun(lead.id, 8, "Delivery Agent", { results: deliveries });
 
   await setCampaignAgent(lead.id, 9);
-  // Real firms: nothing was actually sent, so no reply can exist — never fabricate one.
-  const awaitingRealReply = lead.dataSource === "live" && opts.reply === undefined;
+  // Nothing was actually sent (real firm, or sending locked), so no reply can exist: never fabricate one.
+  // Replies come only from a real webhook or from "Simulate a reply" on the Learn tab.
+  const awaitingRealReply = opts.reply === undefined && (lead.dataSource === "live" || config.simulationMode);
   const response = opts.reply !== undefined
     ? await runResponseMonitorAgent(lead.id, strategy.primaryChannel, opts.reply || undefined)
     : awaitingRealReply

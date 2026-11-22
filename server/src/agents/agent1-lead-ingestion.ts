@@ -168,6 +168,17 @@ function defaultProject(firmName: string, segment: Segment, city: string, input:
   } as const;
 }
 
+/** A sample contact name not already used in this workspace (fictional firms only). */
+async function uniqueSampleName(orgId: string, firmName: string, segment: Segment): Promise<string> {
+  const taken = new Set((await leadsCol().distinct("contactName", { orgId })).map(String));
+  const h = hashOf(firmName + segment);
+  for (let i = 0; i < FIRST.length * LAST.length; i++) {
+    const name = `${pick(FIRST, h, i)} ${pick(LAST, h, 5 + i * 3)}`;
+    if (!taken.has(name)) return name;
+  }
+  return `${pick(FIRST, h)} ${pick(LAST, h, 5)}`;
+}
+
 // ─── Live enrichment (Apollo) — falls back to simulation ───
 
 async function enrichViaApollo(firmName: string, segment: Segment, city: string, contactName?: string, contactTitle?: string): Promise<Enrichment> {
@@ -373,7 +384,8 @@ async function buildLead(
     return buildLiveLead(orgId, firmName, segment, cityRaw, input, rawInput, source);
   }
   const city = normalizeCity(cityRaw) || normalizeCity(input.projectCity) || cityRaw || "Mumbai";
-  const e = await enrichViaApollo(firmName, segment, city, input.contactName, input.contactTitle);
+  const sampleName = input.contactName || (segment === "homeowner" ? undefined : await uniqueSampleName(orgId, firmName, segment));
+  const e = await enrichViaApollo(firmName, segment, city, sampleName, input.contactTitle);
   const project = defaultProject(firmName, segment, city, input);
   return {
     id: nanoid(),

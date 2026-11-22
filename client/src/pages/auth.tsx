@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { NerveLogo } from "@/components/brand/logo";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowRight, Loader2, PlayCircle, Sparkles, Building2, Ruler, Lightbulb, Bath, PaintBucket } from "lucide-react";
+import { CalendarCheck, Eye, EyeOff, Loader2 } from "lucide-react";
+import { NerveLogo } from "@/components/brand/logo";
+import { IconBundle, IconContent, IconVisit } from "@/components/brand/pipeline-icons";
 import { useAuth } from "@/lib/auth";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const BRANDS = [
   { name: "Metalia", c: "#6B7280" },
@@ -17,13 +15,8 @@ const BRANDS = [
   { name: "Colour Coats", c: "#EF4444" },
 ];
 
-const POINTS = [
-  { icon: Building2, text: "Finds the architects, designers & developers who decide what gets specified" },
-  { icon: Ruler, text: "Pitches the right AllHome brands at the right construction stage" },
-  { icon: Lightbulb, text: "Invites them to the nearest experience centre and books the visit" },
-  { icon: Bath, text: "10 AI agents: enrich → signals → score → persona → strategy → content → deliver → learn" },
-  { icon: PaintBucket, text: "Hands warm leads to Zoho CRM with full context" },
-];
+const field =
+  "h-12 w-full border-[3px] border-black rounded-[6px] bg-white px-3.5 text-[15px] font-semibold outline-none transition-shadow placeholder:text-black/35 focus:shadow-[3px_3px_0_0_#000] focus-visible:ring-0";
 
 export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const { login, signup, loginDemo } = useAuth();
@@ -34,18 +27,20 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const [company, setCompany] = useState("AllHome");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState<"form" | "demo" | null>(null);
   const [error, setError] = useState("");
+  const isLogin = mode === "login";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setBusy("form");
     try {
-      const s = mode === "login" ? await login(email, password) : await signup({ name, email, password, company });
+      const s = isLogin ? await login(email, password) : await signup({ name, email, password, company });
       navigate(s.org.settings.onboarded ? next : "/onboarding", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setBusy(null);
     }
@@ -58,130 +53,188 @@ export default function AuthPage({ mode }: { mode: "login" | "signup" }) {
       await loginDemo();
       navigate("/dashboard?tour=1", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't open the demo workspace");
+      setError(err instanceof Error ? err.message : "Couldn't open the demo. Try again in a few seconds.");
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <div className="min-h-screen bg-background grid lg:grid-cols-[1.1fr_1fr]">
-      {/* ── Pitch panel ── */}
-      <div className="hidden lg:flex flex-col justify-between border-r-2 border-black bg-[#1A1A18] text-white p-10">
-        <Link to="/" className="flex items-center gap-3">
-          <NerveLogo size={44} sub="AllHome edition" tone="dark" />
+    <div className="min-h-screen bg-[#F9F5F2] text-black flex flex-col">
+      <header className="h-[68px] px-4 sm:px-8 flex items-center border-b-[3px] border-black bg-[#F9F5F2]">
+        <Link to="/" className="rounded-[4px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30">
+          <NerveLogo size={38} />
         </Link>
+        <Link to="/" className="ml-auto text-[14px] font-bold underline-offset-4 hover:underline">
+          Back to the site
+        </Link>
+      </header>
 
-        <div className="space-y-7 max-w-lg">
-          <motion.h1 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-black leading-[1.1]">
-            Hermes catches inbound enquiries.
-            <span className="block text-secondary">NERVE goes out and creates them.</span>
-          </motion.h1>
-          <p className="text-white/70 text-sm leading-relaxed">
-            In home improvement, architects, designers and contractors influence what gets bought, the way doctors do in pharma.
-            NERVE is an autonomous outreach engine built for AllHome's collective of brands.
-          </p>
-          <ul className="space-y-3">
-            {POINTS.map(({ icon: Icon, text }, i) => (
-              <motion.li key={text} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.06 }} className="flex items-start gap-3 text-sm">
-                <span className="mt-0.5 size-6 shrink-0 rounded border border-white/30 flex items-center justify-center">
-                  <Icon className="size-3.5" />
-                </span>
-                {text}
-              </motion.li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-2">
-            {BRANDS.map((b) => (
-              <span key={b.name} className="text-[11px] font-bold px-2.5 py-1 rounded-full border border-white/25 flex items-center gap-1.5">
-                <span className="size-2 rounded-full" style={{ background: b.c }} /> {b.name}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-[11px] text-white/45">Prototype built for AllHome as part of an SDE interview. Not an official AllHome product. All prospect data in the demo is fictional.</p>
-      </div>
-
-      {/* ── Form panel ── */}
-      <div className="flex items-center justify-center p-6 sm:p-10">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-6">
-          <Link to="/" className="lg:hidden flex mb-2">
-            <NerveLogo size={36} sub="AllHome edition" />
-          </Link>
-
-          {/* Demo first — the fastest way to see it working */}
-          <button
-            onClick={demo}
-            disabled={!!busy}
-            className="w-full text-left border-2 border-black bg-secondary p-5 shadow-[4px_4px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_#000] transition-all disabled:opacity-60"
-          >
-            <div className="flex items-center gap-3">
-              <div className="size-11 border-2 border-black bg-white flex items-center justify-center shrink-0">
-                {busy === "demo" ? <Loader2 className="size-5 animate-spin" /> : <PlayCircle className="size-5" />}
-              </div>
-              <div className="flex-1">
-                <p className="font-black uppercase text-sm">Continue as AllHome demo</p>
-                <p className="text-xs font-semibold text-black/70">One click. Eleven missions already run, with a guided tour.</p>
-              </div>
-              <ArrowRight className="size-5" />
-            </div>
-          </button>
-
-          <div className="flex items-center gap-3 text-[11px] font-bold uppercase text-muted-foreground">
-            <span className="h-px flex-1 bg-black/20" /> or {mode === "login" ? "sign in" : "create your workspace"} <span className="h-px flex-1 bg-black/20" />
-          </div>
-
-          <form onSubmit={submit} className="space-y-4 border-2 border-black bg-white p-6 shadow-[4px_4px_0_0_#000]">
-            <h2 className="text-2xl font-black uppercase">{mode === "login" ? "Sign in" : "Create account"}</h2>
-            {mode === "signup" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Your name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="company">Company</Label>
-                  <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" />
-                </div>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Work email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={mode === "signup" ? 8 : undefined}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                placeholder={mode === "signup" ? "At least 8 characters" : ""}
-              />
-            </div>
-            {error && <p className="text-xs font-bold text-white bg-destructive border-2 border-black px-3 py-2">{error}</p>}
-            <button
-              type="submit"
-              disabled={!!busy}
-              className="w-full h-11 bg-primary text-white font-black uppercase text-sm border-2 border-black shadow-[3px_3px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_#000] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {busy === "form" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              {mode === "login" ? "Sign in" : "Create workspace"}
-            </button>
-            <p className="text-xs font-semibold text-center">
-              {mode === "login" ? (
-                <>New here? <Link className="underline font-black" to={`/signup${params.toString() ? `?${params}` : ""}`}>Create an account</Link></>
-              ) : (
-                <>Already have an account? <Link className="underline font-black" to="/login">Sign in</Link></>
-              )}
+      <div className="flex-1 grid lg:grid-cols-[1fr_1fr]">
+        {/* ── Actions ── */}
+        <main className="flex justify-center px-4 sm:px-8 py-10 sm:py-14">
+          <div className="w-full max-w-[460px]">
+            <h1 className="font-display text-[clamp(2rem,4vw,2.7rem)] font-[900] leading-[1] tracking-[-0.03em]">
+              {isLogin ? "Sign in to NERVE." : "Create your workspace."}
+            </h1>
+            <p className="mt-3 text-[15.5px] leading-[1.55] text-black/70">
+              {isLogin
+                ? "Use your workspace account, or open the shared AllHome demo with no account at all."
+                : "It takes a minute. Next you'll pick the brands you sell, your cities and what Autopilot should watch for."}
             </p>
-          </form>
-          <p className="lg:hidden text-[11px] text-muted-foreground">Prototype built for AllHome. Not an official AllHome product. Demo data is fictional.</p>
-        </motion.div>
+
+            {/* Demo first: the quickest way to see NERVE working */}
+            <div className="mt-7 border-[3px] border-black rounded-[10px] bg-[#FFDA5C] shadow-[6px_6px_0_0_#000] p-5">
+              <h2 className="text-[1.15rem] font-black leading-tight">Open the AllHome demo</h2>
+              <p className="mt-1.5 text-[14px] leading-[1.55] font-medium">
+                Eleven missions already run, a finished Autopilot scan and a guide on every page. Nothing is ever sent from it.
+              </p>
+              <button
+                type="button"
+                onClick={demo}
+                disabled={!!busy}
+                className="mt-4 w-full h-12 inline-flex items-center justify-center gap-2 border-[3px] border-black rounded-[6px] bg-black text-white text-[15px] font-extrabold shadow-[3px_3px_0_0_#fff] hover:-translate-y-[1px] active:translate-y-[1px] transition-transform disabled:opacity-70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30"
+              >
+                {busy === "demo" && <Loader2 className="size-4 animate-spin" />}
+                {busy === "demo" ? "Opening the demo…" : "Open the demo"}
+              </button>
+            </div>
+
+            <div className="my-7 flex items-center gap-3 text-[13px] font-bold text-black/55">
+              <span className="h-[2px] flex-1 bg-black/15" />
+              {isLogin ? "or sign in with your account" : "or create your own workspace"}
+              <span className="h-[2px] flex-1 bg-black/15" />
+            </div>
+
+            <form onSubmit={submit} className="border-[3px] border-black rounded-[10px] bg-white shadow-[6px_6px_0_0_#000] p-5 sm:p-6 space-y-4" noValidate={false}>
+              {!isLogin && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="block text-[13.5px] font-extrabold mb-1.5">Your name</span>
+                    <input className={field} value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
+                  </label>
+                  <label className="block">
+                    <span className="block text-[13.5px] font-extrabold mb-1.5">Company</span>
+                    <input className={field} value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" />
+                  </label>
+                </div>
+              )}
+              <label className="block">
+                <span className="block text-[13.5px] font-extrabold mb-1.5">Work email</span>
+                <input className={field} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@company.com" />
+              </label>
+              <label className="block">
+                <span className="block text-[13.5px] font-extrabold mb-1.5">Password</span>
+                <span className="relative block">
+                  <input
+                    className={`${field} pr-12`}
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={isLogin ? undefined : 8}
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    placeholder={isLogin ? "" : "At least 8 characters"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 size-9 grid place-items-center rounded-[4px] hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </span>
+              </label>
+
+              {error && (
+                <p role="alert" className="text-[13.5px] font-bold border-[3px] border-black rounded-[6px] bg-[#FDE2E7] px-3 py-2.5">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={!!busy}
+                className="w-full h-12 inline-flex items-center justify-center gap-2 border-[3px] border-black rounded-[6px] bg-[#EA435F] text-white text-[15px] font-extrabold shadow-[4px_4px_0_0_#000] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[5px_5px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_0_#000] transition-[transform,box-shadow] disabled:opacity-70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30"
+              >
+                {busy === "form" && <Loader2 className="size-4 animate-spin" />}
+                {isLogin ? "Sign in" : "Create workspace"}
+              </button>
+
+              <p className="text-[14px] font-semibold text-center pt-1">
+                {isLogin ? (
+                  <>
+                    New here?{" "}
+                    <Link className="font-extrabold underline underline-offset-4 decoration-2" to={`/signup${params.toString() ? `?${params}` : ""}`}>
+                      Create a workspace
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{" "}
+                    <Link className="font-extrabold underline underline-offset-4 decoration-2" to="/login">
+                      Sign in
+                    </Link>
+                  </>
+                )}
+              </p>
+            </form>
+
+            <p className="mt-6 text-[12.5px] font-medium text-black/55">
+              A prototype built for AllHome. Not an official AllHome product. Demo firms and contacts are fictional.
+            </p>
+          </div>
+        </main>
+
+        {/* ── What's waiting inside: real items from the demo workspace ── */}
+        <aside aria-label="What's in the demo" className="hidden lg:flex flex-col border-l-[3px] border-black bg-[#CEEBFC] relative overflow-hidden">
+          <div className="flex h-3 border-b-[3px] border-black" aria-hidden>
+            {BRANDS.map((b) => (
+              <span key={b.name} className="flex-1" style={{ background: b.c }} />
+            ))}
+          </div>
+
+          <div className="flex-1 flex flex-col justify-center px-10 xl:px-16 py-12">
+            <p className="text-[15px] font-extrabold">Waiting for you in the demo</p>
+            <div className="mt-6 space-y-5 max-w-[460px]">
+              <article className="border-[3px] border-black rounded-[10px] bg-[#E7F6EC] shadow-[6px_6px_0_0_#000] p-4 -rotate-[1.2deg]">
+                <div className="flex items-center gap-2.5">
+                  <span className="size-9 grid place-items-center border-2 border-black rounded-[5px] bg-white"><IconVisit /></span>
+                  <p className="text-[15px] font-black">Visit booked</p>
+                  <CalendarCheck className="ml-auto size-5" />
+                </div>
+                <p className="mt-2.5 text-[14px] leading-[1.5]">
+                  Ishita Khanna from Studio Kaarva Architects asked to see the facade panels in person. NERVE booked her into the Window Factory experience centre in Mumbai.
+                </p>
+              </article>
+
+              <article className="border-[3px] border-black rounded-[10px] rounded-tl-[2px] bg-white shadow-[6px_6px_0_0_#000] p-4 ml-8 rotate-[0.8deg]">
+                <div className="flex items-center gap-2.5">
+                  <span className="size-9 grid place-items-center border-2 border-black rounded-[5px] bg-[#F9F5F2]"><IconContent /></span>
+                  <p className="text-[15px] font-black">WhatsApp draft for Arjun Reddy</p>
+                </div>
+                <p className="mt-2.5 text-[14px] leading-[1.5]">
+                  “Congratulations on Meridian Skyline in Kokapet. While the design is still being finalised, this is when Metalia and The Window Factory are usually specified.”
+                </p>
+              </article>
+
+              <article className="border-[3px] border-black rounded-[10px] bg-[#FFDA5C] shadow-[6px_6px_0_0_#000] p-4 -rotate-[0.6deg]">
+                <div className="flex items-center gap-2.5">
+                  <span className="size-9 grid place-items-center border-2 border-black rounded-[5px] bg-white"><IconBundle /></span>
+                  <p className="text-[15px] font-black">Autopilot scan finished</p>
+                </div>
+                <p className="mt-2.5 text-[14px] leading-[1.5]">
+                  Found 12 firms in the news and ranked them. The full pipeline ran on the top 3. The other 9 are shortlisted, one click away.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <p className="px-10 xl:px-16 pb-8 text-[13px] font-semibold text-black/65">
+            One collective, seven brands: {BRANDS.map((b) => b.name).join(", ").replace(/, ([^,]*)$/, " and $1")}.
+          </p>
+        </aside>
       </div>
     </div>
   );
