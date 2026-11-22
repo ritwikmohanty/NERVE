@@ -161,7 +161,7 @@ export const BRANDS: Brand[] = [
     category: "lighting",
     tagline: "Design-Led Architectural Lighting & Fans",
     description: "Premium architectural lighting and design-forward fans for luxury residential, commercial and hospitality spaces, with in-house lighting design support for architects and designers.",
-    productLines: ["Landscape Lighting (bollards, wall washers, in-ground, underwater)", "Low-voltage Magnetic Tracks (5–26 mm)", "Customised Indoor Lighting (multiple optics & CCTs)", "Accent Lighting", "Smart Lighting (Bluetooth, Zigbee, DT6, DT8, DMX)", "Decorative & Architectural Fans (Volaris)", "Outdoor Solar Lighting"],
+    productLines: ["Landscape Lighting (bollards, wall washers, in-ground, underwater)", "Low-voltage Magnetic Tracks (5 to 26 mm)", "Customised Indoor Lighting (multiple optics & CCTs)", "Accent Lighting", "Smart Lighting (Bluetooth, Zigbee, DT6, DT8, DMX)", "Decorative & Architectural Fans (Volaris)", "Outdoor Solar Lighting"],
     services: ["In-house lighting design", "Lux calculations", "3D lighting visualisations", "End-to-end architectural lighting recommendations"],
     facts: ["3,500+ SKUs", "1,000+ projects", "350+ channel partners", "20+ years of experience", "Divisions: Artizan, Astara, Volaris, Klewe"],
     partners: [],
