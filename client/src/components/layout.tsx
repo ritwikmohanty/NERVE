@@ -3,7 +3,7 @@ import { NerveLogo } from "@/components/brand/logo";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, UserPlus, Activity, Calendar, Settings, Wifi, WifiOff, Zap, MapPin, BarChart3, LogOut, HelpCircle, Menu, X, Search, BookOpen, Radar,
+  LayoutDashboard, UserPlus, Activity, Calendar, Settings, MapPin, BarChart3, LogOut, HelpCircle, Menu, X, BookOpen, Radar,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -74,23 +74,25 @@ export default function Layout() {
       </nav>
 
       <div className="p-3 space-y-2 border-t-2 border-black">
-        <div className="flex gap-2">
-          <div className={`flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-md border-2 border-black font-bold text-[11px] uppercase ${online ? "bg-[#599D77] text-white" : "bg-destructive text-white"}`}>
-            {online ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
-            {online ? "Connected" : "Offline"}
-          </div>
-          <button onClick={startTour} data-tour="help" title="Show the guide for this page" className="h-[34px] px-2.5 border-2 border-black rounded-md flex items-center gap-1.5 bg-white hover:bg-secondary text-[11px] font-black uppercase">
-            <HelpCircle className="size-4" /> Guide
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5 text-[10px] font-black uppercase">
-          <div className={`border-2 border-black rounded-md px-2 py-1.5 flex items-center gap-1.5 ${health?.liveResearch ? "bg-[#CEEBFC]" : "bg-white"}`} title={health?.liveResearch ? "Tavily + Groq retrieve real information about firms (read-only)" : "Fictional sample data"}>
-            <Search className="size-3.5" /> Research {health?.liveResearch ? "live" : "demo"}
-          </div>
-          <div className={`border-2 border-black rounded-md px-2 py-1.5 flex items-center gap-1.5 ${health?.sendingLocked ? "bg-secondary" : "bg-[#599D77] text-white"}`} title={health?.sendingLocked ? "Personal API keys, nothing is ever sent from this deployment" : "Live sending"}>
-            <Zap className="size-3.5" /> Sending {health?.sendingLocked ? "off" : "on"}
-          </div>
-        </div>
+        {/* Status: plain information, not controls. Connection only shows when it's broken. */}
+        <dl aria-label="Workspace status" className="px-1 pt-0.5 space-y-1.5">
+          {!online && <StatusLine dot="bg-[#EA435F]" label="Server unreachable" note="retrying" title="NERVE can't reach the API. It retries every few seconds." />}
+          <StatusLine
+            dot={health?.liveResearch ? "bg-[#0EA5E9]" : "bg-black/25"}
+            label={health?.liveResearch ? "Research live" : "Sample research"}
+            note={health?.liveResearch ? "read-only" : "fictional firms"}
+            title={health?.liveResearch ? "Real firms are researched with web and news search. This only reads information; nothing is sent." : "Live research is off, so missions use fictional sample firms."}
+          />
+          <StatusLine
+            dot={health?.sendingLocked ? "bg-[#FFDA5C]" : "bg-[#599D77]"}
+            label={health?.sendingLocked ? "Sending off" : "Sending on"}
+            note={health?.sendingLocked ? "nothing leaves" : "live channels"}
+            title={health?.sendingLocked ? "Messages are drafted and tracked but never sent from this deployment." : "Messages go out on the connected WhatsApp, email and LinkedIn accounts."}
+          />
+        </dl>
+        <button onClick={startTour} data-tour="help" title="Show the guide for this page" className="w-full h-9 px-2.5 border-2 border-black rounded-md flex items-center justify-center gap-1.5 bg-white hover:bg-secondary text-[12px] font-black">
+          <HelpCircle className="size-4" /> Guide for this page
+        </button>
         {session && (
           <div className="border-2 border-black rounded-md p-2.5 bg-white">
             <div className="flex items-center gap-2">
@@ -164,6 +166,17 @@ export default function Layout() {
         steps={PAGE_TOURS[tourId]}
         force={tourId === "dashboard" && params.get("tour") === "1"}
       />
+    </div>
+  );
+}
+
+/** One line of the sidebar status readout: a coloured dot, a label and a short note. */
+function StatusLine({ dot, label, note, title }: { dot: string; label: string; note: string; title: string }) {
+  return (
+    <div className="flex items-center gap-2 text-[12px] leading-none" title={title}>
+      <span aria-hidden className={`size-2.5 shrink-0 rounded-full border-[1.5px] border-black ${dot}`} />
+      <dt className="font-extrabold">{label}</dt>
+      <dd className="ml-auto text-[11px] font-semibold text-black/50">{note}</dd>
     </div>
   );
 }
