@@ -14,12 +14,54 @@ export function WindowGrid() {
         lead="Each brand is specified at particular construction stages. NERVE reads the project's stage, leads with the brands whose window is open, and times the next touch to the brand that comes after."
       />
 
-      <div className="relative mt-12 rounded-[12px] border-2 border-black bg-white shadow-[6px_6px_0_0_#000] overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse table-fixed">
+      {/* Phones: stage buttons, then one six-cell bar per brand (the table below is for wider screens) */}
+      <div className="relative mt-10 md:hidden">
+        <div role="group" aria-label="Choose a stage" className="flex flex-wrap gap-2">
+          {STAGES.map((st) => (
+            <button
+              key={st.id}
+              type="button"
+              onClick={() => setFocus(focus === st.id ? null : st.id)}
+              aria-pressed={focus === st.id}
+              className={`rounded-full border-2 border-black px-3 py-1.5 text-[12.5px] font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/25 ${focus === st.id ? "bg-black text-white" : "bg-white"}`}
+            >
+              {st.short}
+            </button>
+          ))}
+        </div>
+        <ul className="mt-5 rounded-[12px] border-2 border-black bg-white shadow-[5px_5px_0_0_#000] divide-y-2 divide-black">
+          {BRANDS.map((b) => {
+            const on = !!focus && b.specifyAt.includes(focus);
+            return (
+              <li key={b.id} className={`px-4 py-3 ${on ? "bg-[#FFF5CC]" : ""}`}>
+                <div className="flex items-baseline gap-2">
+                  <span className="flex items-center gap-2 text-[14px] font-bold">
+                    <Swatch color={b.color} size={11} /> {b.name}
+                  </span>
+                  {on && <span className="ml-auto text-[11px] font-bold text-[#2F7A50]">Pitch now</span>}
+                </div>
+                <div className="mt-2.5 grid grid-cols-6 gap-1" aria-label={`${b.name} is usually specified at ${STAGES.filter((st) => b.specifyAt.includes(st.id)).map((st) => st.label.toLowerCase()).join(" and ")}`}>
+                  {STAGES.map((st) => (
+                    <span
+                      key={st.id}
+                      className={`h-3.5 rounded-[3px] ${b.specifyAt.includes(st.id) ? "border-2 border-black" : "border border-black/15"} ${focus === st.id ? "ring-2 ring-black ring-offset-1" : ""}`}
+                      style={{ background: b.specifyAt.includes(st.id) ? b.color : "transparent" }}
+                    />
+                  ))}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-[11.5px] text-black/45">Bars run from concept and design (left) to handover (right).</p>
+      </div>
+
+      <div className="relative mt-12 hidden md:block rounded-[12px] border-2 border-black bg-white shadow-[6px_6px_0_0_#000] overflow-x-auto">
+        <table className="w-full min-w-[680px] border-collapse table-fixed">
           <caption className="sr-only">Construction stages at which each AllHome brand is usually specified</caption>
           <thead>
             <tr>
-              <th scope="col" className="text-left px-5 py-3.5 text-[13px] font-bold border-b-2 border-black w-[240px]">Brand</th>
+              <th scope="col" className="text-left px-5 py-3.5 text-[13px] font-bold border-b-2 border-black w-[200px] lg:w-[240px]">Brand</th>
               {STAGES.map((st) => (
                 <th key={st.id} scope="col" className="border-b-2 border-l-2 border-black p-0">
                   <button
@@ -69,7 +111,7 @@ export function WindowGrid() {
         </table>
       </div>
 
-      <div className="relative mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] font-medium text-black/55">
+      <div className="relative mt-5 hidden md:flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] font-medium text-black/55">
         <span className="flex items-center gap-2"><span className="h-3 w-6 rounded-[3px] border-2 border-black bg-[#6B7280]" /> Usually specified at this stage</span>
         <span className="flex items-center gap-2"><span className="h-3 w-6 rounded-[3px] border-2 border-black bg-[#FFF5CC] bg-[repeating-linear-gradient(135deg,rgb(0_0_0/0.08)_0_1px,transparent_1px_5px)]" /> The stage you selected</span>
       </div>

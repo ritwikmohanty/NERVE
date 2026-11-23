@@ -33,47 +33,86 @@ export const BRANDS: LandingBrand[] = [
   { id: "colour-coats", name: "Colour Coats", category: "Surface finishes", color: "#EF4444", fact: "Custom finishes, applied on site", specifyAt: ["finishing", "handover"] },
 ];
 
-/** One real opening per stage, as NERVE's checked templates write it for the seeded demo firms. */
-export const HERO_SCENES: Array<{ stage: StageId; firm: string; project: string; to: string; message: string; ask: string }> = [
+/**
+ * The first WhatsApp touch NERVE writes for one seeded demo firm at each stage, copied verbatim from
+ * the seed output (server/src/db/seed-demo.ts run through the real pipeline), with the brands that
+ * touch features (pitch) and the bundle's next-stage brands (next).
+ */
+export interface HeroScene {
+  stage: StageId;
+  firm: string;
+  project: string;
+  to: string;
+  paragraphs: [string, string, string];
+  pitch: string[];
+  next: string[];
+}
+
+export const HERO_SCENES: HeroScene[] = [
   {
     stage: "design",
-    firm: "Meridian Habitat Developers",
-    project: "Meridian Skyline, Kokapet",
-    to: "Arjun",
-    message: "Congratulations on Meridian Skyline in Kokapet. While the design is still being finalised, this is when Metalia and The Window Factory are usually specified.",
-    ask: "Would you have 20 minutes next week to see the panel and window samples at the Metalia experience centre in Hyderabad?",
+    firm: "Monsoon House Architects",
+    project: "Forest Retreat, Devanahalli",
+    to: "Kabir",
+    paragraphs: [
+      "Hi Kabir, this is the specification team at AllHome. Congratulations on the forest retreat in Devanahalli.",
+      "While the design is still being finalised, this is when Metalia and The Window Factory are usually specified. Metalia has installed 500+ facades.",
+      "Shall I send a Metalia sample kit to your studio? You'd also be welcome at the House of W experience centre in Bengaluru to see the wider AllHome range.",
+    ],
+    pitch: ["metalia", "window-factory"],
+    next: ["house-of-w", "ledlum"],
   },
   {
     stage: "structure",
     firm: "Studio Kaarva Architects",
     project: "Kaarva Villa, Alibaug",
     to: "Ishita",
-    message: "Congratulations on Kaarva Villa in Alibaug. With the structure going up, this is when The Window Factory and Metalia are usually specified.",
-    ask: "Would you have 20 minutes next week to see the panel and window samples at the Window Factory experience centre in Mumbai?",
+    paragraphs: [
+      "Hi Ishita, this is the specification team at AllHome. Congratulations on Kaarva Villa in Alibaug.",
+      "With the structure going up, this is when The Window Factory and Metalia are usually specified. The Window Factory has delivered 1,000+ projects across 30+ cities.",
+      "Would you have 20 minutes next week to see the panel and window samples at the Window Factory experience centre in Mumbai? If a visit is hard to fit in, I can send a sample kit to your studio instead.",
+    ],
+    pitch: ["window-factory", "metalia"],
+    next: ["house-of-w", "ledlum"],
   },
   {
     stage: "mep",
     firm: "Kosha Design Studio",
     project: "Boutique Hotel, Chhatarpur",
     to: "Neel",
-    message: "Congratulations on the boutique hotel in Chhatarpur. With MEP and services under way, this is when House of W and Ledlum are usually specified.",
-    ask: "Shall I send a House of W sample kit to your studio?",
+    paragraphs: [
+      "Hi Neel, this is the specification team at AllHome. Congratulations on the boutique hotel in Chhatarpur.",
+      "With MEP and services under way, this is when House of W and Ledlum are usually specified. House of W carries 15+ imported bathware brands, including THG Paris and Victoria + Albert.",
+      "Shall I send a House of W sample kit to your studio? You'd also be welcome at the Colour Coats experience centre in Delhi to see the wider AllHome range.",
+    ],
+    pitch: ["house-of-w", "ledlum"],
+    next: ["fiamarc", "colour-coats"],
   },
   {
     stage: "fitout",
     firm: "Prism Build PMC",
     project: "Grade-A Office Fit-out, Powai",
     to: "Dev",
-    message: "Congratulations on the Grade-A office fit-out in Powai. With interiors and fit-out under way, this is when Fiamarc, Shapes and Ledlum are usually specified.",
-    ask: "Would you have 20 minutes next week to see the fittings and finishes at the Fiamarc experience centre in Mumbai?",
+    paragraphs: [
+      "Hi Dev, this is the specification team at AllHome. Congratulations on the Grade-A office fit-out in Powai.",
+      "With interiors and fit-out under way, this is when Fiamarc, Shapes and Ledlum are usually specified. Fiamarc carries hardware from 15+ international brands.",
+      "Would you have 20 minutes next week to see the fittings and finishes at the Fiamarc experience centre in Mumbai? If a visit is hard to fit in, I can send a sample kit to your site office instead.",
+    ],
+    pitch: ["fiamarc", "shapes", "ledlum"],
+    next: ["colour-coats"],
   },
   {
     stage: "finishing",
     firm: "The Rao Residence",
     project: "Rao Villa, Jubilee Hills",
     to: "Ananya",
-    message: "Good to see Rao Villa in Jubilee Hills nearing completion. With finishing work under way, this is when Shapes and Colour Coats are usually specified.",
-    ask: "Shall I send a Shapes sample kit to your home?",
+    paragraphs: [
+      "Hi Ananya, this is the specification team at AllHome. Good to see Rao Villa in Jubilee Hills nearing completion.",
+      "With finishing work under way, this is when Shapes and Colour Coats are usually specified. Shapes has 1,200+ handle and hardware designs.",
+      "Shall I send a Shapes sample kit to your home? You'd also be welcome at the Window Factory experience centre in Hyderabad to see the wider AllHome range.",
+    ],
+    pitch: ["shapes", "colour-coats"],
+    next: [],
   },
 ];
 

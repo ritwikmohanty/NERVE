@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, CheckCheck, Lock, Pause, Play } from "lucide-react";
+import { Check, Lock, Pause, PencilLine, Play } from "lucide-react";
 import { BuildingSvg } from "./BuildingSvg";
 import { BRANDS, HERO_SCENES, STAGES } from "./data";
 import { ButtonLink, DemoButton, RULE, Section, Swatch, TrafficLights, headline } from "./ui";
@@ -30,18 +30,17 @@ export function Hero() {
   }, [playing, reduced]);
 
   const scene = HERO_SCENES[stage];
-  const stageId = HERO_STAGES[stage].id;
-  const nextId = HERO_STAGES[stage + 1]?.id;
-  const now = BRANDS.filter((b) => b.specifyAt.includes(stageId));
-  const next = BRANDS.filter((b) => !b.specifyAt.includes(stageId) && !!nextId && b.specifyAt.includes(nextId));
+  // The brands this firm's first touch actually features, and its bundle's next-stage brands
+  const now = scene.pitch.map((id) => BRANDS.find((b) => b.id === id)!).filter(Boolean);
+  const next = scene.next.map((id) => BRANDS.find((b) => b.id === id)!).filter(Boolean);
 
   return (
     <Section inner="pt-16 sm:pt-24 pb-16 sm:pb-24">
       {/* Texture: a dot grid that fades out from the top centre */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 dots fade-top opacity-70" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 grid-paper fade-hero" />
 
       <div className="relative text-center">
-        <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-black/55">
+        <p className="inline-flex flex-col sm:flex-row items-center gap-2 text-[13px] sm:text-[14px] font-semibold text-black/55">
           <span className="flex -space-x-1" aria-hidden>
             {BRANDS.map((b) => (
               <span key={b.id} className="size-3 rounded-full border border-[#F9F5F2]" style={{ background: b.color }} />
@@ -77,12 +76,12 @@ export function Hero() {
         </div>
         <div className="relative border-2 border-black rounded-[16px] bg-white overflow-hidden">
           {/* Window bar */}
-          <div className={`flex items-center gap-3 px-4 sm:px-5 h-12 border-b ${RULE} bg-[#F9F5F2]`}>
+          <div className={`flex items-center gap-3 px-4 sm:px-5 min-h-12 py-2 sm:py-0 sm:h-12 border-b ${RULE} bg-[#F9F5F2]`}>
             <TrafficLights />
             <AnimatePresence mode="wait" initial={false}>
-              <motion.p key={scene.project} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="ml-2 text-[13.5px] font-bold truncate">
+              <motion.p key={scene.project} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="ml-1 sm:ml-2 min-w-0 text-[13px] sm:text-[13.5px] font-bold leading-snug sm:truncate">
                 {scene.project}
-                <span className="ml-2 font-medium text-black/50">{scene.firm}</span>
+                <span className="block sm:inline sm:ml-2 font-medium text-black/50">{scene.firm}</span>
               </motion.p>
             </AnimatePresence>
             <button
@@ -155,11 +154,11 @@ export function Hero() {
 
             {/* The draft: the highlight */}
             <div className="flex flex-col min-h-[440px]">
-              <div className={`flex items-center gap-3 px-5 h-14 border-b ${RULE}`}>
+              <div className={`flex items-center gap-3 px-4 sm:px-5 min-h-14 py-2.5 sm:py-0 sm:h-14 border-b ${RULE}`}>
                 <span className="size-9 shrink-0 grid place-items-center rounded-full bg-[#EA435F] text-white text-[12px] font-bold border border-black">AH</span>
                 <div className="min-w-0">
-                  <p className="text-[14px] font-bold leading-tight truncate">AllHome specification team</p>
-                  <p className="text-[12px] text-black/50 leading-tight mt-0.5 truncate">WhatsApp draft to {scene.to}, {scene.firm}</p>
+                  <p className="text-[13.5px] sm:text-[14px] font-bold leading-tight sm:truncate">AllHome specification team</p>
+                  <p className="text-[12px] text-black/50 leading-snug mt-0.5 sm:truncate">WhatsApp draft to {scene.to}, {scene.firm}</p>
                 </div>
                 <span className="ml-auto shrink-0 rounded-full bg-[#FFF5CC] border border-black/15 px-2.5 py-1 text-[11.5px] font-bold">Draft</span>
               </div>
@@ -177,10 +176,7 @@ export function Hero() {
                       transition={{ duration: 0.28, ease: "easeOut" }}
                       className="w-full flex flex-col items-end gap-2"
                     >
-                      <Bubble>
-                        Hi {scene.to}, this is the specification team at AllHome. {scene.message}
-                      </Bubble>
-                      <Bubble strong>{scene.ask}</Bubble>
+                      <Bubble paragraphs={scene.paragraphs} />
                     </motion.div>
                   </AnimatePresence>
                 </div>
@@ -198,12 +194,19 @@ export function Hero() {
   );
 }
 
-function Bubble({ children, strong = false }: { children: React.ReactNode; strong?: boolean }) {
+/** One WhatsApp message, exactly as drafted. It is a draft, so no delivery or read receipts. */
+function Bubble({ paragraphs }: { paragraphs: string[] }) {
   return (
-    <div className="relative max-w-[92%] rounded-[14px] rounded-tr-[4px] bg-[#DDF3E4] border border-[#599D77]/30 px-4 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.06)]">
-      <p className={`text-[15px] leading-[1.55] ${strong ? "font-semibold" : ""}`}>{children}</p>
-      <p className="mt-1 flex items-center justify-end gap-1 text-[11px] text-black/45">
-        10:30 am <CheckCheck className="size-3.5 text-black/35" />
+    <div className="relative max-w-[94%] rounded-[14px] rounded-tr-[4px] bg-[#DDF3E4] border border-[#599D77]/30 px-4 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.06)]">
+      <div className="space-y-2.5">
+        {paragraphs.map((p, i) => (
+          <p key={i} className={`text-[14.5px] leading-[1.55] ${i === paragraphs.length - 1 ? "font-semibold" : ""}`}>
+            {p}
+          </p>
+        ))}
+      </div>
+      <p className="mt-1.5 flex items-center justify-end gap-1 text-[11px] font-medium text-black/45">
+        <PencilLine className="size-3" /> Draft, not sent
       </p>
     </div>
   );

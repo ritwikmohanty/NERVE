@@ -89,7 +89,7 @@ export function Centres() {
         </div>
         <ul className={`relative grid grid-cols-2 sm:grid-cols-4 border-t lg:border-t-0 lg:border-l ${RULE} self-start`}>
           {CITY_CENTRES.map((c, i) => (
-            <li key={c.city} className={`px-5 py-5 border-black/[0.12] ${i % 2 ? "border-l" : ""} sm:border-l-0 ${i % 4 ? "sm:border-l" : ""} ${i >= 2 ? "border-t" : ""} ${i < 4 ? "sm:border-t-0" : "sm:border-t"}`}>
+            <li key={c.city} className={`px-4 py-3.5 sm:px-5 sm:py-5 border-black/[0.12] ${i % 2 ? "border-l" : ""} sm:border-l-0 ${i % 4 ? "sm:border-l" : ""} ${i >= 2 ? "border-t" : ""} ${i < 4 ? "sm:border-t-0" : "sm:border-t"}`}>
               <p className="flex items-baseline justify-between gap-2">
                 <span className="text-[14px] font-bold">{c.city}</span>
                 <span className="text-[11.5px] font-semibold tabular-nums text-black/40">{c.brands.length}</span>

@@ -230,5 +230,31 @@
 .fade-center { mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 25%, transparent 80%); }
 .fade-right { mask-image: linear-gradient(to left, #000 0%, transparent 70%); }
 .fade-corner { mask-image: radial-gradient(ellipse 90% 100% at 100% 0%, #000 10%, transparent 80%); }
+/* Top-right corner only, kept to the empty space beside a left-aligned heading */
+.fade-corner-tr { mask-image: radial-gradient(ellipse 58% 460px at 100% 0%, #000 0%, rgb(0 0 0 / 0.55) 45%, transparent 85%); }
+@media (max-width: 767px) { .fade-corner-tr { mask-image: radial-gradient(ellipse 45% 200px at 100% 0%, #000 0%, transparent 85%); } }
 .fade-bottom { mask-image: radial-gradient(ellipse 80% 90% at 50% 100%, #000 20%, transparent 80%); }
 .fade-left { mask-image: radial-gradient(ellipse 80% 100% at 0% 50%, #000 10%, transparent 75%); }
+
+/* Hero background: engineering grid paper. Dots every 16px, a fine cross every 80px, centred on the page
+   so the grid lines up with the content, fading out evenly around the headline. */
+.grid-paper {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2280%22%20height%3D%2280%22%3E%3Cg%20fill%3D%22%23000%22%20fill-opacity%3D%220.2%22%3E%3Ccircle%20cx%3D%228%22%20cy%3D%228%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2224%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2240%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2256%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2272%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%228%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2240%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2256%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2272%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%228%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2224%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2256%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2240%22%20cy%3D%2272%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2256%22%20cy%3D%228%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2256%22%20cy%3D%2224%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2256%22%20cy%3D%2240%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2256%22%20cy%3D%2256%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2256%22%20cy%3D%2272%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%228%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2224%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2240%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2256%22%20r%3D%221.05%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2272%22%20r%3D%221.05%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M40%2035.5v9M35.5%2040h9%22%20stroke%3D%22%23000%22%20stroke-opacity%3D%220.32%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E");
+  background-size: 80px 80px;
+  background-position: center -8px;
+}
+.fade-hero {
+  /* A U around the content: grid on the top and both sides, clear behind the headline and subheading,
+     fading out at the bottom before the product frame. */
+  mask-image: radial-gradient(ellipse 48% 46% at 50% 47%, transparent 62%, #000 100%), linear-gradient(to bottom, #000 0%, #000 55%, transparent 88%);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+@media (max-width: 1023px) {
+  /* Phones and tablets: the text spans the screen, so the grid is only a band above the headline */
+  .fade-hero {
+    mask-image: linear-gradient(to bottom, #000 0, #000 40px, transparent 150px);
+    mask-composite: add;
+    -webkit-mask-composite: source-over;
+  }
+}

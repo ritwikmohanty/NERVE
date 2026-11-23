@@ -28,7 +28,7 @@ export function Nav() {
         <div className="flex items-center px-5 sm:px-6">
           <Logo />
         </div>
-        <nav aria-label="Sections" className={`hidden md:flex items-stretch border-l ${RULE}`}>
+        <nav aria-label="Sections" className={`hidden lg:flex items-stretch border-l ${RULE}`}>
           {LINKS.map((l) => (
             <a key={l.href} href={l.href} className={`flex items-center px-5 text-[14px] font-semibold text-black/70 border-r ${RULE} hover:text-black hover:bg-black/[0.03] focus-visible:outline-none focus-visible:bg-[#FFF5CC]`}>
               {l.label}
@@ -46,13 +46,13 @@ export function Nav() {
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
-          className={`md:hidden ml-auto sm:ml-0 w-16 grid place-items-center border-l ${RULE}`}
+          className={`lg:hidden ml-auto sm:ml-0 w-16 grid place-items-center border-l ${RULE}`}
         >
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
       {open && (
-        <div className={`md:hidden border-t ${RULE} bg-[#F9F5F2] px-5 py-3`}>
+        <div className={`lg:hidden border-t ${RULE} bg-[#F9F5F2] px-5 py-3`}>
           {LINKS.map((l) => (
             <a key={l.href} href={l.href} onClick={() => setOpen(false)} className={`block py-3 text-[15px] font-semibold border-b ${RULE}`}>
               {l.label}

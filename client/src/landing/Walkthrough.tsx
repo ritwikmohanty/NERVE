@@ -127,7 +127,7 @@ export function Walkthrough() {
   const step = STEPS[active];
   return (
     <Section id="how" inner="py-16 sm:py-24">
-      <div aria-hidden className="pointer-events-none absolute inset-0 dots-fine fade-top opacity-80" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 dots-fine fade-corner-tr" />
       <SectionHead className="relative" title="One mission, from a firm name to a booked visit." lead="Here's how NERVE handles all three, for one demo firm: Studio Kaarva Architects. Ten agents run in sequence on every lead. Step through what they produced." />
       <div className="relative mt-12 grid lg:grid-cols-[320px_1fr] gap-8 lg:gap-12 items-stretch">
         <ol role="tablist" aria-label="Pipeline steps" className="flex lg:flex-col gap-2.5 overflow-x-auto lg:overflow-visible -mx-5 px-5 lg:mx-0 lg:px-0 pt-1 pb-3 lg:pb-0">
@@ -191,7 +191,7 @@ export function Walkthrough() {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="grid grid-cols-[130px_1fr] gap-3 border-b-2 border-black/10 pb-2 text-[14px]">
+    <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-0.5 sm:gap-3 border-b-2 border-black/10 pb-2 text-[14px]">
       <span className="font-semibold text-black/60">{k}</span>
       <span className="font-extrabold">{v}</span>
     </div>
