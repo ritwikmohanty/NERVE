@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { NerveLogo } from "@/components/brand/logo";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import { BRANDS } from "./data";
-import { DemoButton, Section, Swatch } from "./ui";
+import { NerveLogo } from "@/components/brand/logo";
+import { BRANDS, STAGES } from "./data";
+import { DemoButton, RULE, Section, Swatch } from "./ui";
 
 const LINKS = [
   { href: "#how", label: "How it works" },
@@ -14,8 +14,8 @@ const LINKS = [
 
 export function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30 rounded-[4px]">
-      <NerveLogo size={38} />
+    <Link to="/" className="rounded-[4px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/25">
+      <NerveLogo size={34} />
     </Link>
   );
 }
@@ -23,42 +23,44 @@ export function Logo() {
 export function Nav() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-40 bg-[#F9F5F2]/95 backdrop-blur border-b-[3px] border-black">
-      <div className="mx-auto max-w-[1180px] px-4 sm:px-8 h-[68px] flex items-center gap-6">
-        <Logo />
-        <nav aria-label="Sections" className="hidden md:flex items-center gap-1 ml-4">
+    <header className={`sticky top-0 z-40 bg-[#F9F5F2]/90 backdrop-blur-md border-b ${RULE}`}>
+      <div className={`mx-auto max-w-[1200px] border-x ${RULE} h-16 flex items-stretch`}>
+        <div className="flex items-center px-5 sm:px-6">
+          <Logo />
+        </div>
+        <nav aria-label="Sections" className={`hidden md:flex items-stretch border-l ${RULE}`}>
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="px-3 py-2 text-[14px] font-bold rounded-[6px] hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30">
+            <a key={l.href} href={l.href} className={`flex items-center px-5 text-[14px] font-semibold text-black/70 border-r ${RULE} hover:text-black hover:bg-black/[0.03] focus-visible:outline-none focus-visible:bg-[#FFF5CC]`}>
               {l.label}
             </a>
           ))}
         </nav>
-        <div className="ml-auto hidden sm:flex items-center gap-3">
-          <Link to="/login" className="px-3 py-2 text-[14px] font-bold underline-offset-4 hover:underline">
+        <div className="ml-auto hidden sm:flex items-center gap-4 px-5 sm:px-6">
+          <Link to="/login" className="text-[14px] font-semibold text-black/70 hover:text-black">
             Sign in
           </Link>
-          <DemoButton label="Open the demo" />
+          <DemoButton label="Open the demo" size="sm" />
         </div>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
-          className="md:hidden ml-auto sm:ml-0 size-10 grid place-items-center border-[3px] border-black bg-white rounded-[6px]"
+          className={`md:hidden ml-auto sm:ml-0 w-16 grid place-items-center border-l ${RULE}`}
         >
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
       {open && (
-        <div className="md:hidden border-t-[3px] border-black bg-white px-4 py-3 space-y-1">
+        <div className={`md:hidden border-t ${RULE} bg-[#F9F5F2] px-5 py-3`}>
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="block px-2 py-2.5 text-[15px] font-bold border-b border-black/10">
+            <a key={l.href} href={l.href} onClick={() => setOpen(false)} className={`block py-3 text-[15px] font-semibold border-b ${RULE}`}>
               {l.label}
             </a>
           ))}
-          <div className="pt-3 flex items-center gap-3">
-            <DemoButton label="Open the demo" />
-            <Link to="/login" className="text-[14px] font-bold underline">
+          <div className="pt-4 pb-2 flex items-center gap-4">
+            <DemoButton label="Open the demo" size="sm" />
+            <Link to="/login" className="text-[14px] font-semibold underline">
               Sign in
             </Link>
           </div>
@@ -68,24 +70,30 @@ export function Nav() {
   );
 }
 
-/** The seven brands NERVE sells, in the order a building needs them. */
+/** The seven brands, in the order a building needs them, as a hairline grid (no card). */
 export function BrandStrip() {
   return (
-    <Section className="pb-16">
-      <div className="border-[3px] border-black rounded-[10px] bg-white">
-        <p className="px-5 pt-4 text-[14px] font-bold text-black/70">One collective, seven specialist brands, pitched in the order a building needs them</p>
-        <ul className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
-          {BRANDS.map((b, i) => (
-            <li key={b.id} className={`px-5 py-4 border-black ${i > 0 ? "lg:border-l-2" : ""} ${i % 2 ? "border-l-2 sm:border-l-0" : ""} ${i % 4 ? "sm:border-l-2" : ""} border-t-2 lg:border-t-0 lg:mt-3`}>
-              <div className="flex items-center gap-2">
-                <Swatch color={b.color} size={12} />
-                <span className="text-[14px] font-black leading-tight">{b.name}</span>
-              </div>
-              <p className="mt-1 text-[12px] font-semibold text-black/60">{b.category}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <Section inner="!px-0" marks={false}>
+      <p className={`px-5 sm:px-10 py-4 border-b ${RULE} text-[13px] font-semibold text-black/55`}>
+        Seven specialist brands, pitched in the order a building needs them. The bar shows each brand&apos;s stages, from design to handover.
+      </p>
+      <ul className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
+        {BRANDS.map((b, i) => (
+          <li key={b.id} className={`flex flex-col px-5 py-5 border-black/[0.12] ${i % 2 ? "border-l" : ""} sm:border-l-0 ${i % 4 ? "sm:border-l" : ""} ${i ? "lg:border-l" : "lg:border-l-0"} ${i >= 2 ? "border-t sm:border-t-0" : ""} ${i >= 4 ? "sm:border-t lg:border-t-0" : ""}`}>
+            <div className="flex items-center gap-2">
+              <Swatch color={b.color} size={11} />
+              <span className="text-[14.5px] font-bold leading-tight">{b.name}</span>
+            </div>
+            <p className="mt-1.5 text-[12.5px] text-black/55">{b.category}</p>
+            {/* Where in the build this brand is specified: six stages, design to handover */}
+            <div className="mt-auto pt-3.5 flex gap-[3px]" title={`Specified at: ${STAGES.filter((st) => b.specifyAt.includes(st.id)).map((st) => st.label.toLowerCase()).join(", ")}`} aria-label={`Specified at ${STAGES.filter((st) => b.specifyAt.includes(st.id)).map((st) => st.label.toLowerCase()).join(" and ")}`}>
+              {STAGES.map((st) => (
+                <span key={st.id} className="h-[5px] flex-1 rounded-[1px]" style={{ background: b.specifyAt.includes(st.id) ? b.color : "rgb(0 0 0 / 0.08)" }} />
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
     </Section>
   );
 }

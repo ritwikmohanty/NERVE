@@ -205,3 +205,30 @@
   font-stretch: 125%;
   font-variation-settings: "wdth" 125;
 }
+
+/* Landing headings: Archivo slightly wide at a medium weight (the logo keeps the full-width cut) */
+.font-headline {
+  font-family: "Archivo", "Inter", sans-serif;
+  font-stretch: 108%;
+  font-variation-settings: "wdth" 108;
+}
+
+/* Landing textures: dot grids that fade out (a texture gradient, not a colour gradient) */
+.dots {
+  background-image: radial-gradient(circle at center, rgb(0 0 0 / 0.2) 1px, transparent 1.4px);
+  background-size: 16px 16px;
+}
+.dots-fine {
+  background-image: radial-gradient(circle at center, rgb(0 0 0 / 0.2) 0.9px, transparent 1.25px);
+  background-size: 10px 10px;
+}
+.dots-light {
+  background-image: radial-gradient(circle at center, rgb(255 255 255 / 0.4) 1.1px, transparent 1.5px);
+  background-size: 13px 13px;
+}
+.fade-top { mask-image: radial-gradient(ellipse 80% 95% at 50% 0%, #000 35%, transparent 85%); }
+.fade-center { mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 25%, transparent 80%); }
+.fade-right { mask-image: linear-gradient(to left, #000 0%, transparent 70%); }
+.fade-corner { mask-image: radial-gradient(ellipse 90% 100% at 100% 0%, #000 10%, transparent 80%); }
+.fade-bottom { mask-image: radial-gradient(ellipse 80% 90% at 50% 100%, #000 20%, transparent 80%); }
+.fade-left { mask-image: radial-gradient(ellipse 80% 100% at 0% 50%, #000 10%, transparent 75%); }

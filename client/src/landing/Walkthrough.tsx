@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CalendarCheck, Check, FileText, MapPin, MessageCircle, Mail } from "lucide-react";
-import { Section, SectionHead, Swatch } from "./ui";
+import { RULE, Section, SectionHead, Swatch, TrafficLights } from "./ui";
 
 /** One demo mission (Studio Kaarva Architects), exactly as the seeded pipeline produces it. */
 const STEPS: Array<{ title: string; line: string; agents: string; panel: () => ReactNode }> = [
@@ -15,7 +15,7 @@ const STEPS: Array<{ title: string; line: string; agents: string; panel: () => R
         <Row k="Decision maker" v="Ishita Khanna, Founding Partner" />
         <Row k="Project" v="Kaarva Villa, Alibaug" />
         <Row k="Stage and value" v="Structure, about ₹14 Cr" />
-        <p className="text-[13px] leading-[1.55] font-semibold border-2 border-black rounded-[6px] bg-[#CEEBFC] p-3">
+        <p className="text-[13px] leading-[1.55] font-semibold border-2 border-black rounded-[8px] bg-[#CEEBFC] p-3">
           For a real firm, this card is built from live web and news search. Every line links to its source, and emails or phone numbers are never guessed.
         </p>
       </div>
@@ -63,7 +63,7 @@ const STEPS: Array<{ title: string; line: string; agents: string; panel: () => R
           <li className="flex gap-2"><Mail className="size-4 shrink-0 mt-0.5" /> Touch 2 by email, three days later, with a spec sheet</li>
           <li className="flex gap-2"><MessageCircle className="size-4 shrink-0 mt-0.5" /> Touch 3 just before MEP, when House of W is specified</li>
         </ol>
-        <p className="flex gap-2 text-[13.5px] font-bold border-2 border-black rounded-[6px] bg-white p-3">
+        <p className="flex gap-2 text-[13.5px] font-bold border-2 border-black rounded-[8px] bg-white p-3">
           <MapPin className="size-4 shrink-0 mt-0.5" /> Invite: the Window Factory experience centre, Mulund West, Mumbai
         </p>
       </div>
@@ -89,14 +89,14 @@ const STEPS: Array<{ title: string; line: string; agents: string; panel: () => R
     agents: "Agents 8 and 9",
     panel: () => (
       <div className="space-y-3">
-        <div className="border-2 border-black rounded-[8px] rounded-tr-[2px] bg-white p-3 ml-8">
+        <div className="border-2 border-black rounded-[10px] rounded-tr-[2px] bg-white p-3 ml-8">
           <p className="text-[11.5px] font-extrabold text-black/55">Ishita replied</p>
           <p className="mt-1 text-[14px] leading-[1.5]">Lovely timing. Can we visit your experience centre next week to see the facade panels and window samples in person?</p>
         </div>
         <p className="flex items-center gap-2 text-[13.5px] font-bold">
           <Check className="size-4 text-[#599D77]" strokeWidth={3} /> Classified positive: wants to see the products
         </p>
-        <p className="flex gap-2 text-[13.5px] font-bold border-2 border-black rounded-[6px] bg-[#E7F6EC] p-3">
+        <p className="flex gap-2 text-[13.5px] font-bold border-2 border-black rounded-[8px] bg-[#E7F6EC] p-3">
           <CalendarCheck className="size-4 shrink-0 mt-0.5" /> Visit booked at the Window Factory centre, Mumbai, Tuesday 11:00 am
         </p>
         <p className="text-[13px] font-semibold">The lead goes to the Mumbai sales team in Zoho CRM with the full context: project, stage, score, bundle and visit.</p>
@@ -113,7 +113,7 @@ const STEPS: Array<{ title: string; line: string; agents: string; panel: () => R
         <Weight label="Specifier influence" delta="+0.009" up />
         <Weight label="Stage fit" delta="+0.009" up />
         <Weight label="Signal strength" delta="−0.013" />
-        <p className="text-[13.5px] font-semibold border-2 border-black rounded-[6px] bg-white p-3">
+        <p className="text-[13.5px] font-semibold border-2 border-black rounded-[8px] bg-white p-3">
           The Window Factory, Metalia, House of W and Ledlum converted for an architect at the structure stage, so that bundle is favoured for similar projects.
         </p>
       </div>
@@ -126,44 +126,62 @@ export function Walkthrough() {
   const reduced = useReducedMotion();
   const step = STEPS[active];
   return (
-    <Section id="how" className="py-16 sm:py-24 border-t-[3px] border-black bg-white">
-      <SectionHead
-        title="One mission, from a firm name to a booked visit."
-        lead="Ten agents run in sequence on every lead. Click through what they produced for one of the demo firms."
-      />
-      <div className="mt-10 grid lg:grid-cols-[0.85fr_1.15fr] gap-6 lg:gap-10 items-start">
-        <ol role="tablist" aria-label="Pipeline steps" className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0 snap-x">
+    <Section id="how" inner="py-16 sm:py-24">
+      <div aria-hidden className="pointer-events-none absolute inset-0 dots-fine fade-top opacity-80" />
+      <SectionHead className="relative" title="One mission, from a firm name to a booked visit." lead="Here's how NERVE handles all three, for one demo firm: Studio Kaarva Architects. Ten agents run in sequence on every lead. Step through what they produced." />
+      <div className="relative mt-12 grid lg:grid-cols-[320px_1fr] gap-8 lg:gap-12 items-stretch">
+        <ol role="tablist" aria-label="Pipeline steps" className="flex lg:flex-col gap-2.5 overflow-x-auto lg:overflow-visible -mx-5 px-5 lg:mx-0 lg:px-0 pt-1 pb-3 lg:pb-0">
           {STEPS.map((s, i) => (
-            <li key={s.title} className="snap-start shrink-0 lg:shrink">
+            <li key={s.title} className="shrink-0 lg:shrink">
               <button
                 role="tab"
                 aria-selected={i === active}
                 onClick={() => setActive(i)}
-                className={`w-[240px] lg:w-full text-left border-[3px] border-black rounded-[8px] p-3.5 flex gap-3 transition-[background,box-shadow,transform] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/30 ${
-                  i === active ? "bg-[#FFDA5C] shadow-[4px_4px_0_0_#000] -translate-x-[2px] -translate-y-[2px]" : "bg-[#F9F5F2] hover:bg-[#FFF5CC]"
+                className={`group w-[240px] lg:w-full text-left rounded-[10px] border-2 border-black px-4 py-3.5 transition-[transform,box-shadow,background-color] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/25 ${
+                  i === active ? "bg-[#FFDA5C] shadow-[4px_4px_0_0_#000] -translate-x-[2px] -translate-y-[2px]" : "bg-white hover:bg-[#FFF5CC] hover:shadow-[2px_2px_0_0_#000]"
                 }`}
               >
-                <span className={`size-8 shrink-0 grid place-items-center rounded-full border-2 border-black text-[13px] font-black ${i === active ? "bg-black text-white" : "bg-white"}`}>{i + 1}</span>
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-black leading-tight">{s.title}</span>
-                  <span className="block mt-1 text-[13px] font-medium leading-snug text-black/65">{s.line}</span>
+                <span className="flex items-start gap-3">
+                  <span className={`-mt-0.5 size-[28px] shrink-0 grid place-items-center rounded-full border-2 border-black text-[12px] font-bold tabular-nums ${i === active ? "bg-black text-white" : i < active ? "bg-black text-white" : "bg-white text-black"}`}>{i + 1}</span>
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-bold leading-tight">{s.title}</span>
+                    {i === active && <span className="block mt-1.5 text-[13px] leading-snug text-black/65">{s.line}</span>}
+                  </span>
                 </span>
               </button>
             </li>
           ))}
         </ol>
 
-        <div className="border-[3px] border-black rounded-[10px] bg-[#F9F5F2] shadow-[8px_8px_0_0_#000] overflow-hidden lg:sticky lg:top-24">
-          <div className="flex items-center gap-2 px-4 py-2.5 border-b-[3px] border-black bg-white">
-            <span className="text-[13px] font-black">Studio Kaarva Architects</span>
-            <span className="ml-auto text-[12px] font-bold text-black/60">{step.agents}</span>
+        <div className="flex flex-col border-2 border-black rounded-[14px] bg-white shadow-[6px_6px_0_0_#000] overflow-hidden">
+          <div className={`flex items-center gap-2 px-5 h-12 border-b ${RULE} bg-[#F9F5F2]`}>
+            <TrafficLights />
+            <span className="ml-2 text-[13.5px] font-bold">Studio Kaarva Architects</span>
+            <span className="ml-auto text-[12.5px] font-semibold text-black/50">{step.agents}</span>
           </div>
-          <div className="p-5 min-h-[380px]">
+          <div className="flex-1 p-6 sm:p-8 min-h-[380px] flex flex-col">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={active} initial={reduced ? false : { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={reduced ? undefined : { opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
+              <motion.div key={active} initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
                 {step.panel()}
               </motion.div>
             </AnimatePresence>
+            <div aria-hidden className="flex-1 min-h-6" />
+            <div className={`pt-5 flex items-center gap-3 border-t ${RULE} text-[13px] font-semibold`}>
+              <button type="button" disabled={active === 0} onClick={() => setActive((a) => a - 1)} className="rounded-[6px] px-2 py-1 text-black/60 hover:text-black disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                Previous
+              </button>
+              <span className="whitespace-nowrap text-black/40 tabular-nums">{active + 1} of {STEPS.length}</span>
+              <button type="button" disabled={active === STEPS.length - 1} onClick={() => setActive((a) => a + 1)} className="ml-auto rounded-[6px] border border-black/20 bg-white px-3 py-1.5 hover:border-black disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                {active < STEPS.length - 1 ? (
+                  <>
+                    <span className="sm:hidden">Next</span>
+                    <span className="hidden sm:inline">Next: {STEPS[active + 1].title}</span>
+                  </>
+                ) : (
+                  "Done"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -182,7 +200,7 @@ function Row({ k, v }: { k: string; v: string }) {
 
 function Signal({ strength, title }: { strength: "High" | "Medium"; title: string }) {
   return (
-    <div className="flex items-center gap-2 border-2 border-black rounded-[6px] bg-white px-2.5 py-2 text-[13px]">
+    <div className="flex items-center gap-2 border-2 border-black rounded-[8px] bg-white px-2.5 py-2 text-[13px]">
       <span className={`text-[11px] font-black px-1.5 py-0.5 border border-black rounded-[3px] ${strength === "High" ? "bg-[#EA435F] text-white" : "bg-[#FFDA5C]"}`}>{strength}</span>
       <span className="font-semibold truncate">{title}</span>
     </div>
@@ -203,7 +221,7 @@ function Bar({ label, v }: { label: string; v: number }) {
 
 function Window({ color, name, when, on }: { color: string; name: string; when: string; on?: boolean }) {
   return (
-    <div className={`border-2 rounded-[6px] p-2.5 ${on ? "border-black bg-white shadow-[3px_3px_0_0_#000]" : "border-black/40 bg-white/60"}`}>
+    <div className={`border-2 rounded-[6px] p-2.5 ${on ? "border-black bg-white border-black/60" : "border-black/40 bg-white/60"}`}>
       <p className="flex items-center gap-1.5 text-[13px] font-black"><Swatch color={color} /> {name}</p>
       <p className={`mt-1 text-[12px] font-bold ${on ? "text-[#2F7A50]" : "text-black/55"}`}>{when}</p>
     </div>
@@ -212,7 +230,7 @@ function Window({ color, name, when, on }: { color: string; name: string; when: 
 
 function Msg({ channel, text }: { channel: string; text: string }) {
   return (
-    <div className="border-2 border-black rounded-[8px] rounded-tl-[2px] bg-white p-3">
+    <div className="border-2 border-black rounded-[10px] rounded-tl-[2px] bg-white p-3">
       <p className="text-[11.5px] font-extrabold text-black/55">{channel}</p>
       <p className="mt-1 text-[13.5px] leading-[1.5]">{text}</p>
     </div>
@@ -221,7 +239,7 @@ function Msg({ channel, text }: { channel: string; text: string }) {
 
 function Weight({ label, delta, up }: { label: string; delta: string; up?: boolean }) {
   return (
-    <div className="flex items-center gap-3 border-2 border-black rounded-[6px] bg-white px-3 py-2 text-[14px]">
+    <div className="flex items-center gap-3 border-2 border-black rounded-[8px] bg-white px-3 py-2 text-[14px]">
       <span className="font-bold">{label}</span>
       <span className={`ml-auto font-black tabular-nums ${up ? "text-[#2F7A50]" : "text-[#C8263E]"}`}>{delta}</span>
     </div>
